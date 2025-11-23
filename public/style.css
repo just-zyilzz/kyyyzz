@@ -41,6 +41,29 @@ body::before {
   margin-top: 20px;
 }
 
+/* Theme variables */
+:root {
+  --bg: linear-gradient(135deg, #e0d6ff 0%, #f0e6ff 100%);
+  --container-bg: rgba(255,255,255,0.92);
+  --muted: #666;
+  --primary: #6a5acd;
+  --accent: #5a3e8a;
+  --glass-border: rgba(200,180,220,0.3);
+}
+
+body.dark {
+  --bg: linear-gradient(135deg, #0f1226 0%, #14142b 100%);
+  --container-bg: rgba(15,17,30,0.62);
+  --muted: #9aa0b4;
+  --primary: #8ea0ff;
+  --accent: #b9bfff;
+  --glass-border: rgba(120,110,160,0.12);
+  color: #e6e9ff;
+}
+
+body { background: var(--bg); }
+.container { background: var(--container-bg); border: 1px solid var(--glass-border); }
+
 h1 {
   text-align: center;
   margin-bottom: 20px;
@@ -213,6 +236,14 @@ button:hover {
   background: #6a5acd;
   color: white;
 }
+
+/* Footer */
+.site-footer { margin-top: 28px; display:flex; justify-content:center; width:100%; }
+.footer-inner { width:100%; max-width:900px; display:flex; align-items:center; justify-content:space-between; padding:12px 30px; }
+.footer-socials { display:flex; gap:10px; align-items:center; }
+.footer-actions { display:flex; gap:10px; align-items:center; }
+.theme-toggle { padding:8px 10px; border-radius:10px; border:1px solid rgba(0,0,0,0.06); background:transparent; cursor:pointer; font-size:16px; }
+.theme-toggle:hover { transform:translateY(-2px); }
 
 /* Riwayat Style */
 #history-list div {
