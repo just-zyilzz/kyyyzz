@@ -1,4 +1,8 @@
-document.addEventListener('DOMContentLoaded', () => { checkLogin(); initTheme(); });
+document.addEventListener('DOMContentLoaded', () => {
+  checkLogin();
+  initTheme();
+  loadRecommendations();
+});
 
 async function checkLogin() {
   try {
@@ -7,7 +11,7 @@ async function checkLogin() {
     const userInfo = document.getElementById('user-info');
     const authBtn = document.getElementById('auth-btn');
     const tabs = document.getElementById('tabs-container');
-    
+
     if (data.user) {
       userInfo.textContent = `Halo, ${data.user}`;
       authBtn.style.display = 'none';
@@ -29,44 +33,85 @@ function toggleAuth() {
 // Theme handling
 function initTheme() {
   const btn = document.getElementById('theme-toggle');
-  // Determine initial theme: stored value -> system preference -> light
   const stored = localStorage.getItem('theme');
-  if (stored === 'dark') document.body.classList.add('dark');
-  else if (stored === 'light') document.body.classList.remove('dark');
-  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+
+  if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.body.classList.add('dark');
+  } else {
+    document.body.classList.remove('dark');
   }
 
   if (btn) {
-    const applyButton = () => {
+    const updateIcon = () => {
       const isDark = document.body.classList.contains('dark');
       btn.textContent = isDark ? '☀️' : '🌙';
-      btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
-      btn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
     };
-
-    applyButton();
+    updateIcon();
 
     btn.addEventListener('click', () => {
       document.body.classList.toggle('dark');
       const isDark = document.body.classList.contains('dark');
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      applyButton();
+      updateIcon();
     });
-
-    // respond to system preference changes if user hasn't set an explicit choice
-    if (!localStorage.getItem('theme') && window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-        document.body.classList.toggle('dark', e.matches);
-        applyButton();
-      });
-    }
   }
+}
+
+// Recommendations Feature - Integrated with Real YouTube Links
+function loadRecommendations() {
+  const grid = document.getElementById('rec-grid');
+  if (!grid) return;
+
+  // Real YouTube URLs for "Integration" feel
+  const recs = [
+    {
+      title: "Lofi Girl - Study Beats",
+      artist: "Lofi Girl",
+      url: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+      img: "https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg"
+    },
+    {
+      title: "Top Hits Indonesia 2024",
+      artist: "Indo Pop",
+      url: "https://www.youtube.com/watch?v=hLQl3WQQoQ0", // Adele - Easy On Me (Placeholder for top hits)
+      img: "https://i.ytimg.com/vi/hLQl3WQQoQ0/hqdefault.jpg"
+    },
+    {
+      title: "DJ TikTok Viral",
+      artist: "Remix",
+      url: "https://www.youtube.com/watch?v=bM7SZ5SBzyY", // Alan Walker (Placeholder)
+      img: "https://i.ytimg.com/vi/bM7SZ5SBzyY/hqdefault.jpg"
+    },
+    {
+      title: "Relaxing Rain Sounds",
+      artist: "Nature",
+      url: "https://www.youtube.com/watch?v=mPZkdNFkNps",
+      img: "https://i.ytimg.com/vi/mPZkdNFkNps/hqdefault.jpg"
+    }
+  ];
+
+  grid.innerHTML = recs.map(item => `
+    <div class="rec-card" onclick="loadFromRec('${item.url}')">
+      <img src="${item.img}" class="rec-img" alt="${item.title}" onerror="this.style.background='linear-gradient(135deg, #a29bfe, #6c5ce7)'">
+      <div class="rec-title">${item.title}</div>
+      <div class="rec-artist">${item.artist}</div>
+    </div>
+  `).join('');
+}
+
+function loadFromRec(url) {
+  const input = document.getElementById('urlInput');
+  input.value = url;
+  showPopup('🚀 Memuat rekomendasi...');
+  // Trigger fetch automatically
+  document.getElementById('fetchBtn').click();
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 document.getElementById('fetchBtn').addEventListener('click', async () => {
   const url = document.getElementById('urlInput').value.trim();
-  if (!url) return alert('Masukkan URL terlebih dahulu.');
+  if (!url) return showPopup('⚠️ Masukkan URL terlebih dahulu.');
 
   document.querySelector('.loading').style.display = 'block';
   document.querySelector('.result').style.display = 'none';
@@ -82,17 +127,15 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     if (data.success) {
       const resultDiv = document.querySelector('.result');
       resultDiv.innerHTML = `
-        ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+        ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail">` : ''}
         <div class="meta">
-          <p><strong>Judul:</strong> ${data.title}</p>
-          <p><strong>Channel/Username:</strong> ${data.channel}</p>
-          <p><strong>Likes:</strong> ${data.like_count}</p>
-          <p><strong>Views:</strong> ${data.view_count}</p>
-          <p><strong>Platform:</strong> ${data.platform}</p>
+          <p><strong>Judul</strong> <span>${data.title}</span></p>
+          <p><strong>Channel</strong> <span>${data.channel}</span></p>
+          <p><strong>Platform</strong> <span>${data.platform}</span></p>
         </div>
         <div class="download-btns">
-          <button class="dl-video" data-url="${url}">📥 Video</button>
-          <button class="dl-audio" data-url="${url}">🎵 Audio (MP3)</button>
+          <button class="dl-video" data-url="${url}">🎥 Video MP4</button>
+          <button class="dl-audio" data-url="${url}">🎵 Audio MP3</button>
           <button class="dl-thumb" data-url="${url}">🖼️ Thumbnail</button>
         </div>
       `;
@@ -100,8 +143,8 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
 
       document.querySelectorAll('.dl-video, .dl-audio, .dl-thumb').forEach(btn => {
         btn.onclick = (e) => {
-          const format = e.target.classList.contains('dl-video') ? 'video' : 
-                         e.target.classList.contains('dl-audio') ? 'audio' : 'thumb';
+          const format = e.target.classList.contains('dl-video') ? 'video' :
+            e.target.classList.contains('dl-audio') ? 'audio' : 'thumb';
           download(e.target.dataset.url, format);
         };
       });
@@ -109,24 +152,24 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
       throw new Error(data.error || 'Gagal mengambil metadata');
     }
   } catch (e) {
-    alert('Error: ' + e.message);
+    showPopup('❌ Error: ' + e.message);
   } finally {
     document.querySelector('.loading').style.display = 'none';
   }
 });
 
 async function download(url, format) {
-  const popup = document.getElementById('popup');
-  
+  showPopup('⏳ Sedang memproses download...');
+
   try {
     const res = await fetch('/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, format })
     });
-    
+
     const data = await res.json();
-    
+
     if (data.success) {
       const link = document.createElement('a');
       link.href = data.filePath;
@@ -135,42 +178,25 @@ async function download(url, format) {
       link.click();
       document.body.removeChild(link);
 
-      // Auto-delete downloaded file on server after 60 seconds
-      try {
-        setTimeout(() => {
-          fetch('/cleanup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: data.fileName })
-          }).then(r => r.json()).then(resp => {
-            if (!resp.success) console.warn('Auto-cleanup failed:', resp.error);
-          }).catch(e => console.warn('Auto-cleanup error', e));
-        }, 60000);
-      } catch (e) {
-        console.warn('Could not schedule auto-cleanup', e);
-      }
-
-      popup.textContent = '✅ Download berhasil!';
-      popup.className = 'popup show';
-      setTimeout(() => popup.classList.remove('show'), 3000);
+      showPopup('✅ Download berhasil!');
     } else {
       throw new Error(data.error || 'Gagal download');
     }
   } catch (e) {
-    popup.textContent = '❌ Gagal: ' + e.message;
-    popup.className = 'popup show';
-    setTimeout(() => popup.classList.remove('show'), 3000);
+    showPopup('❌ Gagal: ' + e.message);
   }
 }
 
 function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   if (tab === 'downloader') {
-    document.querySelector('.result').style.display = 'block';
+    document.querySelector('.result').style.display = 'none';
+    document.getElementById('recommendations-section').style.display = 'block';
     document.getElementById('history').style.display = 'none';
     event.target.classList.add('active');
   } else if (tab === 'history') {
     document.querySelector('.result').style.display = 'none';
+    document.getElementById('recommendations-section').style.display = 'none';
     document.getElementById('history').style.display = 'block';
     loadHistory();
     event.target.classList.add('active');
@@ -181,48 +207,38 @@ async function loadHistory() {
   const res = await fetch('/api/history');
   const data = await res.json();
   const list = document.getElementById('history-list');
-  list.innerHTML = data.length === 0 
-    ? '<p>Belum ada riwayat.</p>' 
-    : data.map(item => {
-      // ✅ Cek tipe file
-      const isAudio = item.filename.toLowerCase().endsWith('.mp3');
-      const isThumbnail = item.filename.toLowerCase().endsWith('.jpg') || 
-                           item.filename.toLowerCase().endsWith('.png') ||
-                           item.filename.toLowerCase().endsWith('.webp');
-      
-      // ✅ Pilih ikon/placeholder sesuai tipe file
-      let thumbnailSrc, thumbnailStyle;
-      
-      if (isAudio) {
-        // 🎵 Untuk audio: ikon musik
-        thumbnailSrc = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmVyc2lvbj0iMS4xIiB2aWV3Qm94PSIwIDAgNTAgNTAiPjxwYXRoIGQ9Ik0xMS41LDI2LjI2N0wxMy4yNjcsMjZsLTIuNzY3LTcuMjY3TDI1LjUsMzRMMTIuNSw3TDE1LjI2Nyw3bC0yLjc2Ny03TDYsMTUuNTY3TDAsMTRsMTAsMjBjMS4xNDcsMC4yMjgsMi4zNDMsMC4zNTUsMy41LDQuMDMzTDM0LjUsMzFjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY7';
-        thumbnailStyle = 'width:50px; height:50px; background:#e0e0ff; display:flex; align-items:center; justify-content:center; border-radius:6px;';
-      } else if (isThumbnail) {
-        // 🖼️ Untuk thumbnail: tampilkan gambar
-        thumbnailSrc = `/downloads/${item.filename}`;
-        thumbnailStyle = 'width:50px; height:50px; object-fit:cover; border-radius:6px; background:#f0f0f0;';
-      } else {
-        // 📹 Untuk video: gunakan placeholder
-        thumbnailSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIGZpbGw9IiNmZmYiIC8+PGxpbmUgeDE9IjEwIiB5MT0iMTAiIHgyPSI0MCIgeTI9IjQwIiBzdHJva2U9IiM3NzciIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSIxMCIgeTE9IjQwIiB4Mj0iNDAiIHkyPSIxMCIgc3Ryb2tlPSIjNzc3IiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=';
-        thumbnailStyle = 'width:50px; height:50px; object-fit:cover; border-radius:6px; background:#f0f0f0;';
-      }
 
-      return `
-        <div style="border:1px solid #eee; padding:12px; margin:8px 0; border-radius:8px; background:#fafafa; display:flex; gap:12px; align-items:center;">
-          <!-- Thumbnail atau Icon -->
-          <img src="${thumbnailSrc}" alt="${isAudio ? 'Audio File' : 'Thumbnail'}" style="${thumbnailStyle}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIGZpbGw9IiNmZmYiIC8+PGxpbmUgeDE9IjEwIiB5MT0iMTAiIHgyPSI0MCIgeTI9IjQwIiBzdHJva2U9IiM3NzciIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSIxMCIgeTE9IjQwIiB4Mj0iNDAiIHkyPSIxMCIgc3Ryb2tlPSIjNzc3IiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=';" />
-          
-          <!-- Info -->
-          <div style="flex:1; min-width:0;">
-            <strong>${item.title || '—'}</strong><br>
-            <small style="color:#666;">${item.platform} • ${new Date(item.timestamp).toLocaleString()}</small>
-          </div>
-          
-          <!-- Tombol Unduh Ulang -->
-          <a href="/downloads/${item.filename}" download style="color:#6a5acd; text-decoration:none; font-weight:600; white-space:nowrap;">
-            📥 Unduh Ulang
-          </a>
+  if (data.length === 0) {
+    list.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Belum ada riwayat unduhan.</p>';
+    return;
+  }
+
+  list.innerHTML = data.map(item => {
+    const isAudio = item.filename.toLowerCase().endsWith('.mp3');
+    const icon = isAudio
+      ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>'
+      : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
+
+    return `
+      <div>
+        <div style="width:50px; height:50px; background:rgba(100,100,255,0.1); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--primary);">
+          ${icon}
         </div>
-      `;
-    }).join('');
+        <div style="flex:1; min-width:0;">
+          <strong>${item.title || '—'}</strong><br>
+          <small>${item.platform} • ${new Date(item.timestamp).toLocaleDateString()}</small>
+        </div>
+        <a href="/downloads/${item.filename}" download style="color:var(--primary); text-decoration:none; font-weight:600;">
+          📥
+        </a>
+      </div>
+    `;
+  }).join('');
+}
+
+function showPopup(msg) {
+  const popup = document.getElementById('popup');
+  popup.textContent = msg;
+  popup.className = 'popup show';
+  setTimeout(() => popup.classList.remove('show'), 3000);
 }
