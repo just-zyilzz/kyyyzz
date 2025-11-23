@@ -52,17 +52,63 @@ body::before {
 }
 
 body.dark {
-  --bg: linear-gradient(135deg, #0f1226 0%, #14142b 100%);
-  --container-bg: rgba(15,17,30,0.62);
-  --muted: #9aa0b4;
-  --primary: #8ea0ff;
-  --accent: #b9bfff;
-  --glass-border: rgba(120,110,160,0.12);
+  /* Simpler, more aesthetic dark theme */
+  --bg: radial-gradient(circle at 50% 35%, #0b0f1a 0%, #0a0c14 40%, #06070b 100%);
+  --container-bg: rgba(14,16,22,0.72);
+  --muted: #c6cbe0;
+  --primary: #9aa8ff;
+  --accent: #abb6ff;
+  --glass-border: rgba(255,255,255,0.04);
   color: #e6e9ff;
 }
 
 body { background: var(--bg); }
 .container { background: var(--container-bg); border: 1px solid var(--glass-border); }
+
+/* Dark-mode refinements for controls and visual balance */
+body.dark .container {
+  box-shadow: 0 18px 50px rgba(2,6,12,0.6);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+body.dark input {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--muted);
+  box-shadow: none;
+}
+
+body.dark input::placeholder { color: rgba(198,203,224,0.5); }
+
+body.dark button {
+  background: linear-gradient(180deg, rgba(140,150,210,0.14), rgba(110,120,180,0.12));
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+body.dark button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(30,24,80,0.18);
+}
+
+/* Make result and panels darker but readable */
+body.dark .result { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.03); color: var(--muted); }
+body.dark .meta p, body.dark .meta strong { color: var(--muted); }
+
+/* Tone down shimmer overlay in dark mode */
+body.dark .container::after { opacity: 0.25; mix-blend-mode: normal; }
+
+/* Glass blob softer in dark */
+body.dark .glass-blob {
+  background: radial-gradient(circle at 30% 30%, rgba(120,120,180,0.14), rgba(80,80,120,0.06) 35%, rgba(255,255,255,0.01) 60%);
+  filter: blur(28px);
+}
+
+/* Adjust social buttons for higher contrast but simpler look */
+body.dark .social-btn { background: rgba(255,255,255,0.02); color: var(--primary); border:1px solid rgba(255,255,255,0.03); }
+
+/* Footer toggle subtle */
+body.dark .theme-toggle { background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.03); color: var(--muted); }
 
 h1 {
   text-align: center;
