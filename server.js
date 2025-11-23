@@ -326,6 +326,30 @@ app.post('/download', (req, res) => {
   });
 });
 
+// Cleanup endpoint: deletes a file from the downloads folder (used for auto-delete)
+app.post('/cleanup', (req, res) => {
+  const { fileName } = req.body || {};
+  if (!fileName || typeof fileName !== 'string') return res.json({ success: false, error: 'Missing fileName' });
+
+  // Prevent path traversal
+  if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+    return res.json({ success: false, error: 'Invalid file name' });
+  }
+
+  const filePath = path.join(DOWNLOAD_DIR, fileName);
+  if (!fs.existsSync(filePath)) return res.json({ success: false, error: 'File not found' });
+
+  try {
+    fs.unlinkSync(filePath);
+    // Remove from DB history if present (optional)
+    db.run(`DELETE FROM downloads WHERE filename = ?`, [fileName], (err) => { if (err) console.error('Cleanup DB', err); });
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Cleanup error:', e);
+    return res.json({ success: false, error: 'Failed to delete file' });
+  }
+});
+
 app.post('/api/register', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.json({ success: false, error: 'Username dan password wajib diisi' });
