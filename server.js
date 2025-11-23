@@ -127,7 +127,8 @@ app.post('/metadata', (req, res) => {
   }
 
   const isUrl = isValidUrl(url);
-  const query = isUrl ? url : `ytsearch1:${url}`;
+  // Use ytsearch5 for queries to get 5 results
+  const query = isUrl ? url : `ytsearch5:${url}`;
 
   if (isUrl && !isSupportedPlatform(url)) {
     return res.status(400).json({
@@ -139,14 +140,13 @@ app.post('/metadata', (req, res) => {
   const id = crypto.randomBytes(8).toString('hex');
   const outputPath = path.join(DOWNLOAD_DIR, id);
 
-  const formatArg = getFormatArgs(query, 'thumb');
+  // For search, we just want metadata first
   const args = [
     '-m', 'yt_dlp',
     query,
     '--print-json',
     '--write-thumbnail',
     '--skip-download',
-    '-f', formatArg,
     '-o', outputPath + '.%(ext)s'
   ].concat(YTDLP_FLAGS);
 
@@ -172,42 +172,54 @@ app.post('/metadata', (req, res) => {
     }
 
     try {
-      const jsonStr = stdout.trim().split('\n')[0];
-      const meta = JSON.parse(jsonStr);
+      // Split by newline to handle multiple JSON objects
+      const jsonLines = stdout.trim().split('\n').filter(line => line.length > 0);
 
-      const artist = meta.artist || meta.creator || meta.uploader || 'Unknown Artist';
-      const year = meta.upload_date ? meta.upload_date.substring(0, 4) : 'N/A';
-      const realUrl = meta.webpage_url || url;
+      const results = jsonLines.map(jsonStr => {
+        try {
+          const meta = JSON.parse(jsonStr);
+          const artist = meta.artist || meta.creator || meta.uploader || 'Unknown Artist';
+          const year = meta.upload_date ? meta.upload_date.substring(0, 4) : 'N/A';
+          const realUrl = meta.webpage_url || url;
 
-      const metadata = {
-        success: true,
-        title: meta.title || '—',
-        channel: meta.channel || meta.uploader || '—',
-        artist: artist,
-        year: year,
-        like_count: meta.like_count ?? 'N/A',
-        view_count: meta.view_count ?? 'N/A',
-        platform: detectPlatform(realUrl) || 'YouTube',
-        thumbnailUrl: null,
-        downloadUrl: realUrl
-      };
+          return {
+            title: meta.title || '—',
+            channel: meta.channel || meta.uploader || '—',
+            artist: artist,
+            year: year,
+            platform: detectPlatform(realUrl) || 'YouTube',
+            thumbnailUrl: meta.thumbnail || null,
+            downloadUrl: realUrl
+          };
+        } catch (e) {
+          return null;
+        }
+      }).filter(item => item !== null);
 
-      const files = fs.readdirSync(DOWNLOAD_DIR);
-      const thumb = files.find(f => f.startsWith(id) && /\.(jpe?g|png|webp)$/i);
-      if (thumb) metadata.thumbnailUrl = `/downloads/${thumb}`;
-
-      if (req.session) {
-        req.session.lastTitle = metadata.title;
-        req.session.lastPlatform = metadata.platform;
-
-        req.session.save(err => {
-          if (err) console.error('Gagal simpan session:', err);
-          res.json(metadata);
-        });
-        return;
+      if (results.length === 0) {
+        return res.json({ success: false, error: 'Tidak ada hasil ditemukan.' });
       }
 
-      res.json(metadata);
+      // Check for local thumbnail if single result (legacy support/direct url)
+      if (results.length === 1) {
+        const files = fs.readdirSync(DOWNLOAD_DIR);
+        const thumb = files.find(f => f.startsWith(id) && /\.(jpe?g|png|webp)$/i);
+        if (thumb) results[0].thumbnailUrl = `/downloads/${thumb}`;
+
+        // Save session for single result
+        if (req.session) {
+          req.session.lastTitle = results[0].title;
+          req.session.lastPlatform = results[0].platform;
+          req.session.save();
+        }
+      }
+
+      res.json({
+        success: true,
+        isSearch: !isUrl,
+        results: results
+      });
+
     } catch (e) {
       console.error('❌ Parse error:', e.message);
       res.json({ success: false, error: 'Gagal memproses data.' });
@@ -408,5 +420,3 @@ app.listen(PORT, () => {
   console.log(`✅ Server jalan di http://localhost:${PORT}`);
   console.log(`📁 Cache: ${CACHE_DIR}`);
 });
-
-
