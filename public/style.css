@@ -245,6 +245,19 @@ button:hover {
 .theme-toggle { padding:8px 10px; border-radius:10px; border:1px solid rgba(0,0,0,0.06); background:transparent; cursor:pointer; font-size:16px; }
 .theme-toggle:hover { transform:translateY(-2px); }
 
+/* Icon-only social bar placed below the main card */
+.social-bar { display:flex; gap:12px; justify-content:center; align-items:center; margin:18px 0 8px; }
+.social-btn { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; text-decoration:none; color:var(--primary); background: rgba(106,90,205,0.06); border:1px solid rgba(106,90,205,0.08); transition: all 0.18s ease; }
+.social-btn:focus { outline:2px solid rgba(106,90,205,0.18); outline-offset:3px; }
+.social-btn:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(90,60,160,0.08); background: linear-gradient(180deg, rgba(106,90,205,0.08), rgba(106,90,205,0.04)); }
+.social-icon { display:block; width:20px; height:20px; color:var(--primary); }
+
+/* ensure darker/light mode adapts social buttons */
+body.dark .social-btn { color: var(--primary); background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); }
+
+/* tighten footer spacing when social bar is present */
+.site-footer { margin-top: 6px; }
+
 /* Riwayat Style */
 #history-list div {
   border: 1px solid #eee;
