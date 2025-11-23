@@ -292,3 +292,30 @@ button:hover {
 @media (max-width: 480px) {
   .ig-link span { display: none; }
 }
+
+/* Unified social link styling */
+.social-link { display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:#6a5acd; font-weight:600; background: rgba(106,90,205,0.04); padding:6px 8px; border-radius:10px; border:1px solid rgba(106,90,205,0.06); transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease; }
+.social-icon { display:block; color:#6a5acd; }
+.social-text { margin-left:4px; font-size:14px; color:#5a3e8a; }
+.social-link:hover { transform: translateY(-3px); background: linear-gradient(90deg, rgba(106,90,205,0.08), rgba(106,90,205,0.12)); box-shadow: 0 8px 24px rgba(90,60,160,0.08); }
+
+/* Liquid glass decorative blob */
+.glass-blob { position:absolute; right:-80px; top:-60px; width:320px; height:320px; background: radial-gradient(circle at 30% 30%, rgba(106,90,205,0.24), rgba(106,90,205,0.12) 30%, rgba(255,255,255,0.04) 60%); filter: blur(30px); transform: rotate(12deg); border-radius: 40% 60% 55% 45% / 45% 40% 60% 55%; z-index: -1; animation: floatBlob 8s ease-in-out infinite; }
+
+@keyframes floatBlob {
+  0% { transform: translateY(0) scale(1) rotate(12deg); }
+  50% { transform: translateY(-18px) scale(1.03) rotate(8deg); }
+  100% { transform: translateY(0) scale(1) rotate(12deg); }
+}
+
+/* Subtle shimmer for container to evoke liquid glass */
+.container { position: relative; overflow: hidden; }
+.container::after { content: ''; position: absolute; left: -50%; top: -30%; width: 200%; height: 60%; background: linear-gradient(120deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.06) 100%); transform: skewX(-20deg) translateX(-100%); pointer-events: none; transition: all 0.8s ease; animation: shimmer 6s linear infinite; mix-blend-mode: overlay; }
+
+@keyframes shimmer { 0% { transform: skewX(-20deg) translateX(-100%); } 50% { transform: skewX(-20deg) translateX(0%); } 100% { transform: skewX(-20deg) translateX(100%);} }
+
+/* Tweak container glass look */
+.container { background: rgba(255, 255, 255, 0.86); box-shadow: 0 14px 40px rgba(20,12,60,0.08); border: 1px solid rgba(160,140,200,0.12); }
+
+/* Responsive: position blob smaller screens */
+@media (max-width: 768px) { .glass-blob { width:220px; height:220px; right:-60px; top:-80px; filter: blur(26px);} }
