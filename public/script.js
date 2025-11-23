@@ -135,6 +135,21 @@ async function download(url, format) {
       link.click();
       document.body.removeChild(link);
 
+      // Auto-delete downloaded file on server after 60 seconds
+      try {
+        setTimeout(() => {
+          fetch('/cleanup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: data.fileName })
+          }).then(r => r.json()).then(resp => {
+            if (!resp.success) console.warn('Auto-cleanup failed:', resp.error);
+          }).catch(e => console.warn('Auto-cleanup error', e));
+        }, 60000);
+      } catch (e) {
+        console.warn('Could not schedule auto-cleanup', e);
+      }
+
       popup.textContent = '✅ Download berhasil!';
       popup.className = 'popup show';
       setTimeout(() => popup.classList.remove('show'), 3000);
