@@ -46,7 +46,6 @@ function initTheme() {
       btn.textContent = isDark ? '☀️' : '🌙';
     };
     updateIcon();
-
     btn.addEventListener('click', () => {
       document.body.classList.toggle('dark');
       const isDark = document.body.classList.contains('dark');
@@ -96,7 +95,7 @@ function loadRecommendations() {
 
   grid.innerHTML = recs.map(item => `
     <div class="rec-card" onclick="loadFromRec('${item.url}')">
-      <img src="${item.img}" class="rec-img" alt="${item.title}" onerror="this.style.background='linear-gradient(135deg, #a29bfe, #6c5ce7)'">
+      <img src="${item.img}" class="rec-img" alt="${item.title}" onerror="this.style.background='linear-gradient(135deg, #a29bfe, #6c5ce7)'"></img>
       <div class="rec-title">${item.title}</div>
       <div class="rec-artist">${item.artist}</div>
     </div>
@@ -135,10 +134,24 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
       throw new Error(data.error || 'Gagal mengambil metadata');
     }
   } catch (e) {
+    showPopup('❌ Error: ' + e.message);
+  } finally {
+    document.querySelector('.loading').style.display = 'none';
+  }
+});
+
+function renderResults(results) {
+  if (!results || !Array.isArray(results)) return;
+  const resultDiv = document.querySelector('.result');
+  resultDiv.style.display = 'block';
+
+  if (results.length === 1) {
+    renderSingleResult(results[0], resultDiv);
+  } else {
+    let html = `
       <h3 style="margin-bottom:15px; text-align:center;">🔍 Pilih Hasil Pencarian:</h3>
       <div class="result-slider">
     `;
-
     html += results.map((item, index) => `
       <div class="slider-card" onclick="selectResult(${index})">
         <img src="${item.thumbnailUrl}" alt="${item.title}">
@@ -148,7 +161,6 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
         </div>
       </div>
     `).join('');
-
     html += `</div>`;
     resultDiv.innerHTML = html;
   }
@@ -162,8 +174,8 @@ function selectResult(index) {
 
 function renderSingleResult(data, container) {
   container.innerHTML = `
-      < div class="single-result-view" >
-        ${ data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" class="main-thumb">` : '' }
+    <div class="single-result-view">
+      ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" class="main-thumb">` : ''}
       <div class="meta">
         <p><strong>Judul</strong> <span>${data.title}</span></p>
         <p><strong>Artis</strong> <span>${data.artist}</span></p>
@@ -176,13 +188,11 @@ function renderSingleResult(data, container) {
         <button class="dl-thumb" data-url="${data.downloadUrl}">🖼️ Thumbnail</button>
       </div>
       <button onclick="renderResults(currentResults)" style="margin-top:15px; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); width:100%;">🔙 Kembali ke Hasil</button>
-    </div >
-      `;
-
+    </div>
+  `;
   container.querySelectorAll('.dl-video, .dl-audio, .dl-thumb').forEach(btn => {
-    btn.onclick = (e) => {
-      const format = e.target.classList.contains('dl-video') ? 'video' :
-        e.target.classList.contains('dl-audio') ? 'audio' : 'thumb';
+    btn.onclick = e => {
+      const format = e.target.classList.contains('dl-video') ? 'video' : e.target.classList.contains('dl-audio') ? 'audio' : 'thumb';
       download(e.target.dataset.url, format);
     };
   });
@@ -190,16 +200,13 @@ function renderSingleResult(data, container) {
 
 async function download(url, format) {
   showPopup('⏳ Sedang memproses download...');
-
   try {
     const res = await fetch('/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, format })
     });
-
     const data = await res.json();
-
     if (data.success) {
       const link = document.createElement('a');
       link.href = data.filePath;
@@ -207,7 +214,6 @@ async function download(url, format) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
       showPopup('✅ Download berhasil!');
     } else {
       throw new Error(data.error || 'Gagal download');
@@ -237,32 +243,25 @@ async function loadHistory() {
   const res = await fetch('/api/history');
   const data = await res.json();
   const list = document.getElementById('history-list');
-
   if (data.length === 0) {
     list.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Belum ada riwayat unduhan.</p>';
     return;
   }
-
   list.innerHTML = data.map(item => {
     const isAudio = item.filename.toLowerCase().endsWith('.mp3');
     const icon = isAudio
       ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>'
       : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
-
     return `
-      < div >
-        <div style="width:50px; height:50px; background:rgba(100,100,255,0.1); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--primary);">
-          ${icon}
-        </div>
+      <div>
+        <div style="width:50px; height:50px; background:rgba(100,100,255,0.1); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--primary);">${icon}</div>
         <div style="flex:1; min-width:0;">
           <strong>${item.title || '—'}</strong><br>
           <small>${item.platform} • ${new Date(item.timestamp).toLocaleDateString()}</small>
         </div>
-        <a href="/downloads/${item.filename}" download style="color:var(--primary); text-decoration:none; font-weight:600;">
-          📥
-        </a>
-      </div >
-      `;
+        <a href="/downloads/${item.filename}" download style="color:var(--primary); text-decoration:none; font-weight:600;">📥</a>
+      </div>
+    `;
   }).join('');
 }
 
