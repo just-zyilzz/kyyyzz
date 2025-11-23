@@ -1,6 +1,4 @@
-document.addEventListener('DOMContentLoaded', checkLogin);
-// Initialize theme after DOM ready
-document.addEventListener('DOMContentLoaded', initTheme);
+document.addEventListener('DOMContentLoaded', () => { checkLogin(); initTheme(); });
 
 async function checkLogin() {
   try {
@@ -30,17 +28,39 @@ function toggleAuth() {
 
 // Theme handling
 function initTheme() {
+  const btn = document.getElementById('theme-toggle');
+  // Determine initial theme: stored value -> system preference -> light
   const stored = localStorage.getItem('theme');
   if (stored === 'dark') document.body.classList.add('dark');
-  const btn = document.getElementById('theme-toggle');
+  else if (stored === 'light') document.body.classList.remove('dark');
+  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.body.classList.add('dark');
+  }
+
   if (btn) {
-    btn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+    const applyButton = () => {
+      const isDark = document.body.classList.contains('dark');
+      btn.textContent = isDark ? '☀️' : '🌙';
+      btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+      btn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+    };
+
+    applyButton();
+
     btn.addEventListener('click', () => {
       document.body.classList.toggle('dark');
       const isDark = document.body.classList.contains('dark');
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      btn.textContent = isDark ? '☀️' : '🌙';
+      applyButton();
     });
+
+    // respond to system preference changes if user hasn't set an explicit choice
+    if (!localStorage.getItem('theme') && window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        document.body.classList.toggle('dark', e.matches);
+        applyButton();
+      });
+    }
   }
 }
 
