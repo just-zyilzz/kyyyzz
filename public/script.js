@@ -110,8 +110,8 @@ function loadFromRec(url) {
 }
 
 document.getElementById('fetchBtn').addEventListener('click', async () => {
-  const url = document.getElementById('urlInput').value.trim();
-  if (!url) return showPopup('⚠️ Masukkan URL terlebih dahulu.');
+  const inputVal = document.getElementById('urlInput').value.trim();
+  if (!inputVal) return showPopup('⚠️ Masukkan judul lagu atau URL.');
 
   document.querySelector('.loading').style.display = 'block';
   document.querySelector('.result').style.display = 'none';
@@ -120,23 +120,28 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     const res = await fetch('/metadata', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ url: inputVal })
     });
     const data = await res.json();
 
     if (data.success) {
       const resultDiv = document.querySelector('.result');
+
+      // Use the returned downloadUrl (real link) for the buttons
+      const targetUrl = data.downloadUrl || inputVal;
+
       resultDiv.innerHTML = `
         ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail">` : ''}
         <div class="meta">
           <p><strong>Judul</strong> <span>${data.title}</span></p>
-          <p><strong>Channel</strong> <span>${data.channel}</span></p>
+          <p><strong>Artis</strong> <span>${data.artist}</span></p>
+          <p><strong>Tahun</strong> <span>${data.year}</span></p>
           <p><strong>Platform</strong> <span>${data.platform}</span></p>
         </div>
         <div class="download-btns">
-          <button class="dl-video" data-url="${url}">🎥 Video MP4</button>
-          <button class="dl-audio" data-url="${url}">🎵 Audio MP3</button>
-          <button class="dl-thumb" data-url="${url}">🖼️ Thumbnail</button>
+          <button class="dl-video" data-url="${targetUrl}">🎥 Video MP4</button>
+          <button class="dl-audio" data-url="${targetUrl}">🎵 Audio MP3</button>
+          <button class="dl-thumb" data-url="${targetUrl}">🖼️ Thumbnail</button>
         </div>
       `;
       resultDiv.style.display = 'block';
