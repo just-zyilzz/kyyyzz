@@ -55,7 +55,15 @@ $syncBlock = {
 # references are evaluated in the event-runspace rather than expanded now.
 $handlerPath = Join-Path (Get-Location) 'auto-deploy-handler.ps1'
 $escapedHandler = $handlerPath -replace "'", "''"
-$action = [ScriptBlock]::Create("& '$escapedHandler' `$Event.SourceEventArgs.FullPath `$Event.SourceEventArgs.ChangeType")
+$ignorePatterns = @('\\.git\\', '\\node_modules\\', '\\.vs\\', '\\npm-debug.log', '\\package-lock.json')
+
+# Build a scriptblock that filters events for ignored paths, then calls the handler
+$action = [ScriptBlock]::Create(
+        "`$p = `$Event.SourceEventArgs.FullPath; `n"
+    + "if (-not `$p) { return } `n"
+    + "$([string]::Join('', ($ignorePatterns | ForEach-Object { "if (`$p -match '$_') { return } `n" })))"
+    + "& '$escapedHandler' `$p `$Event.SourceEventArgs.ChangeType"
+)
 
 # Register events with explicit SourceIdentifier so we can unregister cleanly
 $evtChanged = Register-ObjectEvent -InputObject $watcher -EventName Changed -Action $action -SourceIdentifier FileChanged
