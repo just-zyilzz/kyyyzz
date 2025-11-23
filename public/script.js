@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', checkLogin);
+// Initialize theme after DOM ready
+document.addEventListener('DOMContentLoaded', initTheme);
 
 async function checkLogin() {
   try {
@@ -24,6 +26,22 @@ async function checkLogin() {
 
 function toggleAuth() {
   window.location.href = '/auth';
+}
+
+// Theme handling
+function initTheme() {
+  const stored = localStorage.getItem('theme');
+  if (stored === 'dark') document.body.classList.add('dark');
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+    btn.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      btn.textContent = isDark ? '☀️' : '🌙';
+    });
+  }
 }
 
 document.getElementById('fetchBtn').addEventListener('click', async () => {
