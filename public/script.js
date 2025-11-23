@@ -30,7 +30,6 @@ function toggleAuth() {
   window.location.href = '/auth';
 }
 
-// Theme handling
 function initTheme() {
   const btn = document.getElementById('theme-toggle');
   const stored = localStorage.getItem('theme');
@@ -57,36 +56,41 @@ function initTheme() {
   }
 }
 
-// Recommendations Feature - Integrated with Real YouTube Links
+// Updated Recommendations (Frank Ocean, Daniel Caesar style)
 function loadRecommendations() {
   const grid = document.getElementById('rec-grid');
   if (!grid) return;
 
-  // Real YouTube URLs for "Integration" feel
   const recs = [
     {
-      title: "Lofi Girl - Study Beats",
-      artist: "Lofi Girl",
-      url: "https://www.youtube.com/watch?v=jfKfPfyJRdk",
-      img: "https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg"
+      title: "Frank Ocean - Pink + White",
+      artist: "Frank Ocean",
+      url: "https://www.youtube.com/watch?v=uzS3WG6__G4",
+      img: "https://i.ytimg.com/vi/uzS3WG6__G4/hqdefault.jpg"
     },
     {
-      title: "Top Hits Indonesia 2024",
-      artist: "Indo Pop",
-      url: "https://www.youtube.com/watch?v=hLQl3WQQoQ0", // Adele - Easy On Me (Placeholder for top hits)
-      img: "https://i.ytimg.com/vi/hLQl3WQQoQ0/hqdefault.jpg"
+      title: "Daniel Caesar - Best Part (feat. H.E.R.)",
+      artist: "Daniel Caesar",
+      url: "https://www.youtube.com/watch?v=h58hK28JDqg",
+      img: "https://i.ytimg.com/vi/h58hK28JDqg/hqdefault.jpg"
     },
     {
-      title: "DJ TikTok Viral",
-      artist: "Remix",
-      url: "https://www.youtube.com/watch?v=bM7SZ5SBzyY", // Alan Walker (Placeholder)
-      img: "https://i.ytimg.com/vi/bM7SZ5SBzyY/hqdefault.jpg"
+      title: "SZA - Snooze",
+      artist: "SZA",
+      url: "https://www.youtube.com/watch?v=LDY_XMFLQM8",
+      img: "https://i.ytimg.com/vi/LDY_XMFLQM8/hqdefault.jpg"
     },
     {
-      title: "Relaxing Rain Sounds",
-      artist: "Nature",
-      url: "https://www.youtube.com/watch?v=mPZkdNFkNps",
-      img: "https://i.ytimg.com/vi/mPZkdNFkNps/hqdefault.jpg"
+      title: "Joji - Glimpse of Us",
+      artist: "Joji",
+      url: "https://www.youtube.com/watch?v=N8Z9r_k7lTE",
+      img: "https://i.ytimg.com/vi/N8Z9r_k7lTE/hqdefault.jpg"
+    },
+    {
+      title: "Rex Orange County - Best Friend",
+      artist: "Rex Orange County",
+      url: "https://www.youtube.com/watch?v=_LBO18k-K0s",
+      img: "https://i.ytimg.com/vi/_LBO18k-K0s/hqdefault.jpg"
     }
   ];
 
@@ -102,12 +106,12 @@ function loadRecommendations() {
 function loadFromRec(url) {
   const input = document.getElementById('urlInput');
   input.value = url;
-  showPopup('🚀 Memuat rekomendasi...');
-  // Trigger fetch automatically
+  showPopup('🚀 Memuat...');
   document.getElementById('fetchBtn').click();
-  // Scroll to top
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+let currentResults = [];
 
 document.getElementById('fetchBtn').addEventListener('click', async () => {
   const inputVal = document.getElementById('urlInput').value.trim();
@@ -125,34 +129,8 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     const data = await res.json();
 
     if (data.success) {
-      const resultDiv = document.querySelector('.result');
-
-      // Use the returned downloadUrl (real link) for the buttons
-      const targetUrl = data.downloadUrl || inputVal;
-
-      resultDiv.innerHTML = `
-        ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail">` : ''}
-        <div class="meta">
-          <p><strong>Judul</strong> <span>${data.title}</span></p>
-          <p><strong>Artis</strong> <span>${data.artist}</span></p>
-          <p><strong>Tahun</strong> <span>${data.year}</span></p>
-          <p><strong>Platform</strong> <span>${data.platform}</span></p>
-        </div>
-        <div class="download-btns">
-          <button class="dl-video" data-url="${targetUrl}">🎥 Video MP4</button>
-          <button class="dl-audio" data-url="${targetUrl}">🎵 Audio MP3</button>
-          <button class="dl-thumb" data-url="${targetUrl}">🖼️ Thumbnail</button>
-        </div>
-      `;
-      resultDiv.style.display = 'block';
-
-      document.querySelectorAll('.dl-video, .dl-audio, .dl-thumb').forEach(btn => {
-        btn.onclick = (e) => {
-          const format = e.target.classList.contains('dl-video') ? 'video' :
-            e.target.classList.contains('dl-audio') ? 'audio' : 'thumb';
-          download(e.target.dataset.url, format);
-        };
-      });
+      currentResults = data.results;
+      renderResults(data.results);
     } else {
       throw new Error(data.error || 'Gagal mengambil metadata');
     }
@@ -162,6 +140,69 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     document.querySelector('.loading').style.display = 'none';
   }
 });
+
+function renderResults(results) {
+  const resultDiv = document.querySelector('.result');
+  resultDiv.style.display = 'block';
+
+  if (results.length === 1) {
+    // Single result (Direct URL)
+    renderSingleResult(results[0], resultDiv);
+  } else {
+    // Multiple results (Search) - Render Slider
+    let html = `
+      <h3 style="margin-bottom:15px; text-align:center;">🔍 Pilih Hasil Pencarian:</h3>
+      <div class="result-slider">
+    `;
+
+    html += results.map((item, index) => `
+      <div class="slider-card" onclick="selectResult(${index})">
+        <img src="${item.thumbnailUrl}" alt="${item.title}">
+        <div class="slider-info">
+          <div class="slider-title">${item.title}</div>
+          <div class="slider-artist">${item.artist} • ${item.year}</div>
+        </div>
+      </div>
+    `).join('');
+
+    html += `</div>`;
+    resultDiv.innerHTML = html;
+  }
+}
+
+function selectResult(index) {
+  const item = currentResults[index];
+  const resultDiv = document.querySelector('.result');
+  renderSingleResult(item, resultDiv);
+}
+
+function renderSingleResult(data, container) {
+  container.innerHTML = `
+    <div class="single-result-view">
+      ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" class="main-thumb">` : ''}
+      <div class="meta">
+        <p><strong>Judul</strong> <span>${data.title}</span></p>
+        <p><strong>Artis</strong> <span>${data.artist}</span></p>
+        <p><strong>Tahun</strong> <span>${data.year}</span></p>
+        <p><strong>Platform</strong> <span>${data.platform}</span></p>
+      </div>
+      <div class="download-btns">
+        <button class="dl-video" data-url="${data.downloadUrl}">🎥 Video MP4</button>
+        <button class="dl-audio" data-url="${data.downloadUrl}">🎵 Audio MP3</button>
+        <button class="dl-thumb" data-url="${data.downloadUrl}">🖼️ Thumbnail</button>
+      </div>
+      <button onclick="renderResults(currentResults)" style="margin-top:15px; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); width:100%;">🔙 Kembali ke Hasil</button>
+    </div>
+  `;
+
+  container.querySelectorAll('.dl-video, .dl-audio, .dl-thumb').forEach(btn => {
+    btn.onclick = (e) => {
+      const format = e.target.classList.contains('dl-video') ? 'video' :
+        e.target.classList.contains('dl-audio') ? 'audio' : 'thumb';
+      download(e.target.dataset.url, format);
+    };
+  });
+}
 
 async function download(url, format) {
   showPopup('⏳ Sedang memproses download...');
