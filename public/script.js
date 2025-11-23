@@ -135,22 +135,6 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
       throw new Error(data.error || 'Gagal mengambil metadata');
     }
   } catch (e) {
-    showPopup('❌ Error: ' + e.message);
-  } finally {
-    document.querySelector('.loading').style.display = 'none';
-  }
-});
-
-function renderResults(results) {
-  const resultDiv = document.querySelector('.result');
-  resultDiv.style.display = 'block';
-
-  if (results.length === 1) {
-    // Single result (Direct URL)
-    renderSingleResult(results[0], resultDiv);
-  } else {
-    // Multiple results (Search) - Render Slider
-    let html = `
       <h3 style="margin-bottom:15px; text-align:center;">🔍 Pilih Hasil Pencarian:</h3>
       <div class="result-slider">
     `;
@@ -178,8 +162,8 @@ function selectResult(index) {
 
 function renderSingleResult(data, container) {
   container.innerHTML = `
-    <div class="single-result-view">
-      ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" class="main-thumb">` : ''}
+      < div class="single-result-view" >
+        ${ data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" class="main-thumb">` : '' }
       <div class="meta">
         <p><strong>Judul</strong> <span>${data.title}</span></p>
         <p><strong>Artis</strong> <span>${data.artist}</span></p>
@@ -192,8 +176,8 @@ function renderSingleResult(data, container) {
         <button class="dl-thumb" data-url="${data.downloadUrl}">🖼️ Thumbnail</button>
       </div>
       <button onclick="renderResults(currentResults)" style="margin-top:15px; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); width:100%;">🔙 Kembali ke Hasil</button>
-    </div>
-  `;
+    </div >
+      `;
 
   container.querySelectorAll('.dl-video, .dl-audio, .dl-thumb').forEach(btn => {
     btn.onclick = (e) => {
@@ -266,7 +250,7 @@ async function loadHistory() {
       : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
 
     return `
-      <div>
+      < div >
         <div style="width:50px; height:50px; background:rgba(100,100,255,0.1); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--primary);">
           ${icon}
         </div>
@@ -277,8 +261,8 @@ async function loadHistory() {
         <a href="/downloads/${item.filename}" download style="color:var(--primary); text-decoration:none; font-weight:600;">
           📥
         </a>
-      </div>
-    `;
+      </div >
+      `;
   }).join('');
 }
 
