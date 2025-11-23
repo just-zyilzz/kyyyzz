@@ -93,7 +93,12 @@ body.dark button:hover {
 
 /* Make result and panels darker but readable */
 body.dark .result { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.03); color: var(--muted); }
-body.dark .meta p, body.dark .meta strong { color: var(--muted); }
+body.dark .meta p, body.dark .meta strong { color: #e6e9ff; font-weight: 600; }
+
+/* Improve overall text weight/contrast in dark mode */
+body.dark, body.dark p, body.dark small, body.dark label { color: #e6e9ff; }
+body.dark .container, body.dark .tabs, body.dark .tab-btn, body.dark .download-btns button { color: #e6e9ff; }
+body.dark h1 { color: #dcd8ff; font-weight: 800; }
 
 /* Tone down shimmer overlay in dark mode */
 body.dark .container::after { opacity: 0.25; mix-blend-mode: normal; }
