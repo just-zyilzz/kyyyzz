@@ -217,7 +217,7 @@ app.post('/metadata', (req, res) => {
       res.json({
         success: true,
         isSearch: !isUrl,
-        results: results
+        results: results || []
       });
 
     } catch (e) {
