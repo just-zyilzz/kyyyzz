@@ -58,12 +58,14 @@ $escapedHandler = $handlerPath -replace "'", "''"
 $ignorePatterns = @('\\.git\\', '\\node_modules\\', '\\.vs\\', '\\npm-debug.log', '\\package-lock.json')
 
 # Build a scriptblock that filters events for ignored paths, then calls the handler
-$action = [ScriptBlock]::Create(
-        "`$p = `$Event.SourceEventArgs.FullPath; `n"
-    + "if (-not `$p) { return } `n"
-    + "$([string]::Join('', ($ignorePatterns | ForEach-Object { "if (`$p -match '$_') { return } `n" })))"
-    + "& '$escapedHandler' `$p `$Event.SourceEventArgs.ChangeType"
-)
+# Precompute ignore checks as a literal string to avoid nested quoting issues
+$ignoreChecks = $ignorePatterns | ForEach-Object { "if (`$p -match '$_') { return } `n" } | Out-String
+$actionString = "`$p = `$Event.SourceEventArgs.FullPath; `n"
+$actionString += "if (-not `$p) { return } `n"
+$actionString += $ignoreChecks
+$actionString += "& '$escapedHandler' `$p `$Event.SourceEventArgs.ChangeType"
+
+$action = [ScriptBlock]::Create($actionString)
 
 # Register events with explicit SourceIdentifier so we can unregister cleanly
 $evtChanged = Register-ObjectEvent -InputObject $watcher -EventName Changed -Action $action -SourceIdentifier FileChanged
