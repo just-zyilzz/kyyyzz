@@ -377,3 +377,4 @@ app.listen(PORT, () => {
   console.log(`📁 Cache: ${CACHE_DIR}`);
   console.log(`✅ RIWAYAT FIX: Thumbnail kecil, judul benar, platform terdeteksi`);
 });
+
