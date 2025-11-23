@@ -55,51 +55,8 @@ function initTheme() {
     });
   }
 }
-
-// Updated Recommendations (Frank Ocean, Daniel Caesar style)
-function loadRecommendations() {
-  const grid = document.getElementById('rec-grid');
-  if (!grid) return;
-
-  const recs = [
-    {
-      title: "Frank Ocean - Pink + White",
-      artist: "Frank Ocean",
-      url: "https://www.youtube.com/watch?v=uzS3WG6__G4",
-      img: "https://i.ytimg.com/vi/uzS3WG6__G4/hqdefault.jpg"
-    },
-    {
-      title: "Daniel Caesar - Best Part (feat. H.E.R.)",
-      artist: "Daniel Caesar",
-      url: "https://www.youtube.com/watch?v=h58hK28JDqg",
-      img: "https://i.ytimg.com/vi/h58hK28JDqg/hqdefault.jpg"
-    },
-    {
-      title: "SZA - Snooze",
-      artist: "SZA",
-      url: "https://www.youtube.com/watch?v=LDY_XMFLQM8",
-      img: "https://i.ytimg.com/vi/LDY_XMFLQM8/hqdefault.jpg"
-    },
-    {
-      title: "Joji - Glimpse of Us",
-      artist: "Joji",
-      url: "https://www.youtube.com/watch?v=N8Z9r_k7lTE",
-      img: "https://i.ytimg.com/vi/N8Z9r_k7lTE/hqdefault.jpg"
-    },
-    {
-      title: "Rex Orange County - Best Friend",
-      artist: "Rex Orange County",
-      url: "https://www.youtube.com/watch?v=_LBO18k-K0s",
-      img: "https://i.ytimg.com/vi/_LBO18k-K0s/hqdefault.jpg"
-    }
-  ];
-
-  grid.innerHTML = recs.map(item => `
-    <div class="rec-card" onclick="loadFromRec('${item.url}')">
-      <img src="${item.img}" class="rec-img" alt="${item.title}" onerror="this.style.background='linear-gradient(135deg, #a29bfe, #6c5ce7)'">
-      <div class="rec-title">${item.title}</div>
-      <div class="rec-artist">${item.artist}</div>
-    </div>
+<div class="rec-artist">${item.artist}</div>
+    </div >
   `).join('');
 }
 
@@ -151,21 +108,21 @@ function renderResults(results) {
   } else {
     // Multiple results (Search) - Render Slider
     let html = `
-      <h3 style="margin-bottom:15px; text-align:center;">🔍 Pilih Hasil Pencarian:</h3>
-      <div class="result-slider">
-    `;
+  < h3 style = "margin-bottom:15px; text-align:center;" >🔍 Pilih Hasil Pencarian:</h3 >
+    <div class="result-slider">
+      `;
 
     html += results.map((item, index) => `
       <div class="slider-card" onclick="selectResult(${index})">
         <img src="${item.thumbnailUrl}" alt="${item.title}">
-        <div class="slider-info">
-          <div class="slider-title">${item.title}</div>
-          <div class="slider-artist">${item.artist} • ${item.year}</div>
-        </div>
+          <div class="slider-info">
+            <div class="slider-title">${item.title}</div>
+            <div class="slider-artist">${item.artist} • ${item.year}</div>
+          </div>
       </div>
-    `).join('');
+      `).join('');
 
-    html += `</div>`;
+      html += `</div>`;
     resultDiv.innerHTML = html;
   }
 }
@@ -178,8 +135,8 @@ function selectResult(index) {
 
 function renderSingleResult(data, container) {
   container.innerHTML = `
-    <div class="single-result-view">
-      ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" class="main-thumb">` : ''}
+        < div class="single-result-view" >
+          ${ data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" class="main-thumb">` : '' }
       <div class="meta">
         <p><strong>Judul</strong> <span>${data.title}</span></p>
         <p><strong>Artis</strong> <span>${data.artist}</span></p>
@@ -192,7 +149,7 @@ function renderSingleResult(data, container) {
         <button class="dl-thumb" data-url="${data.downloadUrl}">🖼️ Thumbnail</button>
       </div>
       <button onclick="renderResults(currentResults)" style="margin-top:15px; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); width:100%;">🔙 Kembali ke Hasil</button>
-    </div>
+    </div >
   `;
 
   container.querySelectorAll('.dl-video, .dl-audio, .dl-thumb').forEach(btn => {
@@ -266,7 +223,7 @@ async function loadHistory() {
       : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
 
     return `
-      <div>
+  < div >
         <div style="width:50px; height:50px; background:rgba(100,100,255,0.1); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--primary);">
           ${icon}
         </div>
@@ -277,8 +234,8 @@ async function loadHistory() {
         <a href="/downloads/${item.filename}" download style="color:var(--primary); text-decoration:none; font-weight:600;">
           📥
         </a>
-      </div>
-    `;
+      </div >
+  `;
   }).join('');
 }
 
