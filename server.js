@@ -290,16 +290,24 @@ app.post('/download', (req, res) => {
     }, 60000); // 1 menit
   };
 
+  console.log(`📥 Starting download: ${url} [${format}]`);
+
   const ytDlp = spawn('python', args, {
     windowsHide: true,
     stdio: 'pipe'
   });
 
-  ytDlp.on('error', () => sendError('yt-dlp gagal'));
+  ytDlp.on('error', (err) => {
+    console.error('❌ yt-dlp spawn error:', err);
+    sendError('yt-dlp gagal dijalankan');
+  });
 
   ytDlp.on('close', (code) => {
     if (responded) return;
-    if (code !== 0) return sendError('Download gagal');
+    if (code !== 0) {
+      console.error(`❌ yt-dlp exited with code ${code}`);
+      return sendError('Download gagal');
+    }
 
     const files = fs.readdirSync(DOWNLOAD_DIR);
     const file = files.filter(f => f.startsWith(id) && !f.endsWith('.part'))[0];
