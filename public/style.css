@@ -270,3 +270,25 @@ button:hover {
 .popup.show {
   transform: translateX(0);
 }
+
+/* Social / Instagram link */
+.ig-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #6a5acd;
+  font-weight: 600;
+  background: rgba(106,90,205,0.06);
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease, transform 0.08s ease;
+  border: 1px solid rgba(106,90,205,0.08);
+}
+
+.ig-link svg { display: block; }
+.ig-link:hover { background: rgba(106,90,205,0.12); transform: translateY(-1px); }
+
+@media (max-width: 480px) {
+  .ig-link span { display: none; }
+}
