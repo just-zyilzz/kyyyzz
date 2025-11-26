@@ -1,61 +1,31 @@
 # Panduan Deploy Media Downloader
 
-Aplikasi ini membutuhkan **Node.js**, **Python** (untuk yt-dlp), dan **FFmpeg**. Cara termudah dan termurah untuk deploy adalah menggunakan **Render** (bisa gratis) atau **Railway**.
+Aplikasi ini membutuhkan **Node.js**, **Python** (untuk yt-dlp), dan **FFmpeg**.
+Karena dependensi sistem ini, aplikasi **TIDAK BISA** dideploy ke Vercel/Netlify (Serverless) secara langsung.
+Solusi terbaik dan termudah adalah menggunakan **Render (Docker)**.
 
-## Opsi 1: Render (Gratis / Murah)
+## Cara Deploy ke Render (Gratis)
 
-Render memiliki "Free Tier" yang cukup untuk percobaan.
-
-1.  **Push kode ke GitHub**: Pastikan kode ini ada di repository GitHub Anda.
-2.  Daftar di [render.com](https://render.com).
+1.  **Push ke GitHub**: Pastikan kode ini sudah ada di repository GitHub Anda.
+2.  Buka [dashboard.render.com](https://dashboard.render.com).
 3.  Klik **New +** -> **Web Service**.
-4.  Hubungkan akun GitHub dan pilih repository ini.
-5.  **PENTING**: Di bagian "Runtime", pilih **Docker**.
-    *   Karena kita butuh Python dan FFmpeg, kita harus pakai Docker (file `Dockerfile` sudah saya buatkan).
-6.  Pilih "Free" instance type.
+4.  Pilih **Build and deploy from a Git repository**.
+5.  Hubungkan akun GitHub dan pilih repository ini.
+6.  **PENTING**:
+    *   **Runtime**: Pilih **Docker**.
+    *   **Instance Type**: Pilih **Free**.
 7.  Klik **Create Web Service**.
 
-### Domain (Render)
-*   Render memberikan subdomain gratis (contoh: `myapp.onrender.com`).
-*   Untuk pakai domain sendiri (misal `mediaku.com`):
-    1.  Beli domain di **Namecheap**, **Niagahoster**, atau **Cloudflare**.
-    2.  Di Dashboard Render, masuk ke tab **Settings** -> **Custom Domains**.
-    3.  Masukkan nama domain Anda.
-    4.  Ikuti instruksi untuk update DNS (biasanya menambah CNAME atau A record di tempat Anda beli domain).
+Render akan membaca file `Dockerfile` dan otomatis menginstall Node.js, Python, dan FFmpeg.
 
-## Opsi 2: VPS (DigitalOcean / Hetzner) - Lebih Murah untuk Trafik Tinggi
+### Catatan (Free Tier)
+*   **Cold Start**: Server akan "tidur" jika tidak diakses selama 15 menit. Akses pertama kali akan butuh waktu ~1 menit.
+*   **Storage**: File yang didownload akan **hilang** jika server restart/tidur. Ini normal untuk layanan gratis.
 
-Jika ingin performa maksimal dengan harga tetap (~$4-5/bulan), sewa VPS Ubuntu.
+## FAQ
 
-1.  Sewa VPS (Droplet) di DigitalOcean atau Cloud VPS di Hetzner.
-2.  Masuk via SSH.
-3.  Install Docker:
-    ```bash
-    apt update
-    apt install docker.io
-    ```
-4.  Jalankan container:
-    ```bash
-    docker build -t media-downloader .
-    docker run -d -p 80:3000 --restart always media-downloader
-    ```
-5.  Gunakan **Nginx** untuk reverse proxy domain Anda ke port 3000.
+**Q: Kenapa tidak bisa Vercel?**
+A: Vercel didesain untuk Frontend/Serverless. Backend kita butuh `ffmpeg` (binary besar) dan `python` yang berjalan terus menerus (long-running process) untuk download video. Vercel akan mematikan proses setelah 10 detik (timeout), sehingga download pasti gagal.
 
-## Catatan Penting
-*   **Storage**: Di Render (Free Tier), file yang didownload ke folder `downloads/` akan hilang jika server restart. Ini bagus untuk privasi dan hemat storage.
-*   **Database**: File `database/app.db` (SQLite) juga akan reset jika server restart di Render Free Tier. Jika butuh data user (login/history) permanen, Anda perlu upgrade ke "Disk" (berbayar) atau gunakan database eksternal (seperti PostgreSQL).
-*   **Database**: File `database/app.db` (SQLite) juga akan reset jika server restart di Render Free Tier. Jika butuh data user (login/history) permanen, Anda perlu upgrade ke "Disk" (berbayar) atau gunakan database eksternal (seperti PostgreSQL).
-
-## FAQ: Cloudflare / Vercel / Netlify
-
-**T: Bisakah deploy ke Cloudflare Pages, Vercel, atau Netlify?**
-
-**J: TIDAK BISA untuk Backend-nya.**
-
-Alasannya:
-1.  Aplikasi ini menggunakan **Python** (`yt-dlp`) dan **FFmpeg** (untuk konversi audio).
-2.  Cloudflare Workers, Vercel, dan Netlify adalah lingkungan "Serverless" yang hanya mendukung Node.js/Go/Rust secara terbatas dan **tidak bisa menjalankan binary eksternal** seperti Python atau FFmpeg.
-3.  Mereka juga tidak memiliki **filesystem** yang bisa ditulisi (folder `downloads/` tidak akan berfungsi).
-
-**Solusi:**
-Gunakan Cloudflare hanya sebagai **DNS & CDN** (pengelola domain). Arahkan domain Cloudflare Anda ke server **Render** atau **VPS** tempat aplikasi berjalan.
+**Q: Saya tetap ingin pakai domain sendiri?**
+A: Bisa. Di Render, masuk ke **Settings -> Custom Domains**, lalu tambahkan domain Anda (misal `dl.namasaya.com`). Atur DNS sesuai instruksi Render.

@@ -1,16 +1,9 @@
 services:
   - type: web
     name: media-downloader
-    env: node
-    buildCommand: npm install
-    startCommand: node server.js
+    env: docker
+    plan: free
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: SESSION_SECRET
         generateValue: true
-    disk:
-      path: /downloads
-      sizeGB: 1
-    plan: free
 

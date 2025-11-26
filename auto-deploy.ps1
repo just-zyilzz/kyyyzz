@@ -76,8 +76,7 @@ Write-Host "Watching for file changes. Press Ctrl+C to stop." -ForegroundColor C
 
 try {
     while ($true) { Start-Sleep 1 }
-}
-finally {
+} finally {
     Unregister-Event -SourceIdentifier FileChanged -ErrorAction SilentlyContinue
     Unregister-Event -SourceIdentifier FileCreated -ErrorAction SilentlyContinue
     Unregister-Event -SourceIdentifier FileDeleted -ErrorAction SilentlyContinue

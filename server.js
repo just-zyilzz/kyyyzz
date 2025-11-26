@@ -74,7 +74,7 @@ function detectPlatform(url) {
   if (lowerUrl.includes('youtube')) return 'YouTube';
   if (lowerUrl.includes('tiktok') || lowerUrl.includes('vt.tiktok') || lowerUrl.includes('vm.tiktok')) return 'TikTok';
   if (lowerUrl.includes('instagram') && lowerUrl.includes('/reel/')) return 'Instagram Reels';
-  return 'Unknown';
+  return null;
 }
 
 const YTDLP_FLAGS = [
@@ -88,6 +88,7 @@ const YTDLP_FLAGS = [
   '--retries', '3'
 ];
 
+// Tambahkan cookies.txt jika ada
 const COOKIES_PATH = path.join(__dirname, 'cookies.txt');
 if (fs.existsSync(COOKIES_PATH)) {
   YTDLP_FLAGS.push('--cookies', COOKIES_PATH);
@@ -106,7 +107,6 @@ function getFormatArgs(url, format) {
       return 'best[height<=720]/best';
     }
   } else {
-    // Default / YouTube
     if (format === 'video') {
       return 'mp4/bestvideo[height<=480]+bestaudio/best[height<=480]/best[height<=480]';
     } else if (format === 'audio') {
@@ -119,18 +119,14 @@ function getFormatArgs(url, format) {
 
 app.post('/metadata', (req, res) => {
   const { url } = req.body;
-  if (!url) {
+  if (!url || !isValidUrl(url)) {
     return res.status(400).json({
       success: false,
-      error: 'Masukkan judul lagu atau URL.'
+      error: 'URL tidak valid. Pastikan dimulai dengan https://'
     });
   }
 
-  const isUrl = isValidUrl(url);
-  // Use ytsearch5 for queries to get 5 results
-  const query = isUrl ? url : `ytsearch5:${url}`;
-
-  if (isUrl && !isSupportedPlatform(url)) {
+  if (!isSupportedPlatform(url)) {
     return res.status(400).json({
       success: false,
       error: 'Hanya YouTube, TikTok, dan Instagram Reels yang didukung'
@@ -140,17 +136,18 @@ app.post('/metadata', (req, res) => {
   const id = crypto.randomBytes(8).toString('hex');
   const outputPath = path.join(DOWNLOAD_DIR, id);
 
-  // For search, we just want metadata first
+  const formatArg = getFormatArgs(url, 'thumb');
   const args = [
     '-m', 'yt_dlp',
-    query,
+    url,
     '--print-json',
     '--write-thumbnail',
     '--skip-download',
+    '-f', formatArg,
     '-o', outputPath + '.%(ext)s'
   ].concat(YTDLP_FLAGS);
 
-  const ytDlp = spawn('python', args, {
+  const ytDlp = spawn('python', args, { 
     windowsHide: true,
     stdio: 'pipe'
   });
@@ -159,70 +156,56 @@ app.post('/metadata', (req, res) => {
 
   ytDlp.stdout.on('data', data => stdout += data);
   ytDlp.stderr.on('data', data => stderr += data);
-
+  
   ytDlp.on('error', (err) => {
     console.error('❌ yt-dlp error:', err.message);
-    res.json({ success: false, error: 'Sistem sedang sibuk, coba lagi nanti.' });
+    res.json({ success: false, error: 'yt-dlp gagal. Pastikan: pip install yt-dlp' });
   });
 
   ytDlp.on('close', (code) => {
     if (code !== 0) {
       console.error('❌ yt-dlp failed:', stderr);
-      return res.json({ success: false, error: 'Konten tidak ditemukan.' });
+      return res.json({ success: false, error: 'Gagal ambil metadata. Cek URL valid?' });
     }
 
     try {
-      // Split by newline to handle multiple JSON objects
-      const jsonLines = stdout.trim().split('\n').filter(line => line.length > 0);
-
-      const results = jsonLines.map(jsonStr => {
-        try {
-          const meta = JSON.parse(jsonStr);
-          const artist = meta.artist || meta.creator || meta.uploader || 'Unknown Artist';
-          const year = meta.upload_date ? meta.upload_date.substring(0, 4) : 'N/A';
-          const realUrl = meta.webpage_url || url;
-
-          return {
-            title: meta.title || '—',
-            channel: meta.channel || meta.uploader || '—',
-            artist: artist,
-            year: year,
-            platform: detectPlatform(realUrl) || 'YouTube',
-            thumbnailUrl: meta.thumbnail || null,
-            downloadUrl: realUrl
-          };
-        } catch (e) {
-          return null;
-        }
-      }).filter(item => item !== null);
-
-      if (results.length === 0) {
-        return res.json({ success: false, error: 'Tidak ada hasil ditemukan.' });
-      }
-
-      // Check for local thumbnail if single result (legacy support/direct url)
-      if (results.length === 1) {
-        const files = fs.readdirSync(DOWNLOAD_DIR);
-        const thumb = files.find(f => f.startsWith(id) && /\.(jpe?g|png|webp)$/i);
-        if (thumb) results[0].thumbnailUrl = `/downloads/${thumb}`;
-
-        // Save session for single result
-        if (req.session) {
-          req.session.lastTitle = results[0].title;
-          req.session.lastPlatform = results[0].platform;
-          req.session.save();
-        }
-      }
-
-      res.json({
+      const jsonStr = stdout.trim().split('\n')[0];
+      const meta = JSON.parse(jsonStr);
+      
+      const metadata = {
         success: true,
-        isSearch: !isUrl,
-        results: results || []
-      });
+        title: meta.title || '—',
+        channel: meta.channel || meta.uploader || meta.owner_username || '—',
+        like_count: meta.like_count ?? 'N/A',
+        view_count: meta.view_count ?? 'N/A',
+        platform: detectPlatform(url),
+        thumbnailUrl: null
+      };
 
+      const files = fs.readdirSync(DOWNLOAD_DIR);
+      const thumb = files.find(f => f.startsWith(id) && /\.(jpe?g|png|webp)$/i);
+      if (thumb) metadata.thumbnailUrl = `/downloads/${thumb}`;
+
+      // ✅ SIMPAN KE SESSION DENGAN SAVE()
+      if (req.session) {
+        req.session.lastTitle = metadata.title;
+        req.session.lastPlatform = metadata.platform;
+        
+        req.session.save(err => {
+          if (err) {
+            console.error('Gagal menyimpan session:', err);
+            res.json({ success: false, error: 'Gagal menyimpan session' });
+          } else {
+            res.json(metadata);
+          }
+        });
+        return;
+      }
+
+      res.json(metadata);
     } catch (e) {
       console.error('❌ Parse error:', e.message);
-      res.json({ success: false, error: 'Gagal memproses data.' });
+      res.json({ success: false, error: 'Gagal parsing metadata' });
     }
   });
 });
@@ -230,16 +213,23 @@ app.post('/metadata', (req, res) => {
 app.post('/download', (req, res) => {
   const { url, format = 'video' } = req.body;
   const user_id = req.session.user ? req.session.user.id : null;
-
-  if (!url) {
+  
+  if (!url || !isValidUrl(url)) {
     return res.status(400).json({
       success: false,
-      error: 'URL tidak valid.'
+      error: 'URL tidak valid. Pastikan dimulai dengan https://'
+    });
+  }
+
+  if (!isSupportedPlatform(url)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Hanya YouTube, TikTok, dan Instagram Reels yang didukung'
     });
   }
 
   let responded = false;
-  const sendError = (msg) => {
+  const sendError = (msg) => { 
     if (!responded) {
       responded = true;
       res.json({ success: false, error: msg });
@@ -278,41 +268,22 @@ app.post('/download', (req, res) => {
     ].concat(YTDLP_FLAGS);
   }
 
-  // 🕒 Auto-delete helper
-  const scheduleAutoDelete = (filePath) => {
-    setTimeout(() => {
-      if (fs.existsSync(filePath)) {
-        fs.unlink(filePath, (err) => {
-          if (err) console.error(`❌ Gagal auto-delete ${filePath}:`, err);
-          else console.log(`🗑️ Auto-delete sukses: ${filePath}`);
-        });
-      }
-    }, 60000); // 1 menit
-  };
-
-  console.log(`📥 Starting download: ${url} [${format}]`);
-
-  const ytDlp = spawn('python', args, {
+  const ytDlp = spawn('python', args, { 
     windowsHide: true,
     stdio: 'pipe'
   });
-
-  ytDlp.on('error', (err) => {
-    console.error('❌ yt-dlp spawn error:', err);
-    sendError('yt-dlp gagal dijalankan');
-  });
-
+  
+  ytDlp.on('error', () => sendError('yt-dlp gagal'));
+  
   ytDlp.on('close', (code) => {
     if (responded) return;
-    if (code !== 0) {
-      console.error(`❌ yt-dlp exited with code ${code}`);
-      return sendError('Download gagal');
-    }
+    if (code !== 0) return sendError('Download gagal');
 
     const files = fs.readdirSync(DOWNLOAD_DIR);
     const file = files.filter(f => f.startsWith(id) && !f.endsWith('.part'))[0];
     if (!file) return sendError('File tidak ditemukan');
 
+    // ✅ AMBIL DARI SESSION
     const savedTitle = req.session.lastTitle || '—';
     const savedPlatform = req.session.lastPlatform || detectPlatform(url);
 
@@ -332,7 +303,7 @@ app.post('/download', (req, res) => {
         '-f', 'mp3',
         '-preset', 'fast',
         mp3Path
-      ], {
+      ], { 
         windowsHide: true,
         stdio: 'pipe'
       });
@@ -344,23 +315,23 @@ app.post('/download', (req, res) => {
           if (user_id) {
             db.run(`UPDATE downloads SET filename = ? WHERE filename = ?`, [id + '.mp3', file]);
           }
-          scheduleAutoDelete(mp3Path); // 🕒 Auto-delete MP3
           res.json({ success: true, fileName: id + '.mp3', filePath: `/downloads/${id}.mp3` });
         } else {
           sendError('Konversi audio gagal');
         }
       });
     } else {
-      scheduleAutoDelete(tempPath); // 🕒 Auto-delete Video
       res.json({ success: true, fileName: file, filePath: `/downloads/${file}` });
     }
   });
 });
 
+// Cleanup endpoint: deletes a file from the downloads folder (used for auto-delete)
 app.post('/cleanup', (req, res) => {
   const { fileName } = req.body || {};
   if (!fileName || typeof fileName !== 'string') return res.json({ success: false, error: 'Missing fileName' });
 
+  // Prevent path traversal
   if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
     return res.json({ success: false, error: 'Invalid file name' });
   }
@@ -370,6 +341,7 @@ app.post('/cleanup', (req, res) => {
 
   try {
     fs.unlinkSync(filePath);
+    // Remove from DB history if present (optional)
     db.run(`DELETE FROM downloads WHERE filename = ?`, [fileName], (err) => { if (err) console.error('Cleanup DB', err); });
     return res.json({ success: true });
   } catch (e) {
@@ -384,7 +356,7 @@ app.post('/api/register', (req, res) => {
 
   db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, row) => {
     if (row) return res.json({ success: false, error: 'Username sudah terdaftar' });
-    db.run(`INSERT INTO users (username, password) VALUES (?, ?)`, [username, password], function (err) {
+    db.run(`INSERT INTO users (username, password) VALUES (?, ?)`, [username, password], function(err) {
       if (err) return res.json({ success: false, error: 'Gagal daftar' });
       req.session.user = { id: this.lastID, username };
       res.json({ success: true });
@@ -427,4 +399,6 @@ app.get('/auth', (req, res) => res.sendFile(path.join(__dirname, 'public', 'auth
 app.listen(PORT, () => {
   console.log(`✅ Server jalan di http://localhost:${PORT}`);
   console.log(`📁 Cache: ${CACHE_DIR}`);
+  console.log(`✅ RIWAYAT FIX: Thumbnail kecil, judul benar, platform terdeteksi`);
 });
+

@@ -1,8 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
-  checkLogin();
-  initTheme();
-  loadRecommendations();
-});
+document.addEventListener('DOMContentLoaded', () => { checkLogin(); initTheme(); });
 
 async function checkLogin() {
   try {
@@ -11,7 +7,7 @@ async function checkLogin() {
     const userInfo = document.getElementById('user-info');
     const authBtn = document.getElementById('auth-btn');
     const tabs = document.getElementById('tabs-container');
-
+    
     if (data.user) {
       userInfo.textContent = `Halo, ${data.user}`;
       authBtn.style.display = 'none';
@@ -30,91 +26,47 @@ function toggleAuth() {
   window.location.href = '/auth';
 }
 
+// Theme handling
 function initTheme() {
   const btn = document.getElementById('theme-toggle');
+  // Determine initial theme: stored value -> system preference -> light
   const stored = localStorage.getItem('theme');
-
-  if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+  if (stored === 'dark') document.body.classList.add('dark');
+  else if (stored === 'light') document.body.classList.remove('dark');
+  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     document.body.classList.add('dark');
-  } else {
-    document.body.classList.remove('dark');
   }
 
   if (btn) {
-    const updateIcon = () => {
+    const applyButton = () => {
       const isDark = document.body.classList.contains('dark');
       btn.textContent = isDark ? '☀️' : '🌙';
+      btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+      btn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
     };
-    updateIcon();
+
+    applyButton();
+
     btn.addEventListener('click', () => {
       document.body.classList.toggle('dark');
       const isDark = document.body.classList.contains('dark');
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      updateIcon();
+      applyButton();
     });
+
+    // respond to system preference changes if user hasn't set an explicit choice
+    if (!localStorage.getItem('theme') && window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        document.body.classList.toggle('dark', e.matches);
+        applyButton();
+      });
+    }
   }
 }
 
-// Updated Recommendations (Frank Ocean, Daniel Caesar style)
-function loadRecommendations() {
-  const grid = document.getElementById('rec-grid');
-  if (!grid) return;
-
-  const recs = [
-    {
-      title: "Frank Ocean - Pink + White",
-      artist: "Frank Ocean",
-      url: "https://www.youtube.com/watch?v=uzS3WG6__G4",
-      img: "https://i.ytimg.com/vi/uzS3WG6__G4/hqdefault.jpg"
-    },
-    {
-      title: "Daniel Caesar - Best Part (feat. H.E.R.)",
-      artist: "Daniel Caesar",
-      url: "https://www.youtube.com/watch?v=hKgl5-lkT8U",
-      img: "https://i.ytimg.com/vi/hKgl5-lkT8U/hqdefault.jpg"
-    },
-    {
-      title: "SZA - Snooze",
-      artist: "SZA",
-      url: "https://www.youtube.com/watch?v=LDY_XyxBu8A",
-      img: "https://i.ytimg.com/vi/LDY_XyxBu8A/hqdefault.jpg"
-    },
-    {
-      title: "Joji - Glimpse of Us",
-      artist: "Joji",
-      url: "https://www.youtube.com/watch?v=MsS4_Wl2N3g",
-      img: "https://i.ytimg.com/vi/MsS4_Wl2N3g/hqdefault.jpg"
-    },
-    {
-      title: "Rex Orange County - Best Friend",
-      artist: "Rex Orange County",
-      url: "https://www.youtube.com/watch?v=gA11hGvS8kQ",
-      img: "https://i.ytimg.com/vi/gA11hGvS8kQ/hqdefault.jpg"
-    }
-  ];
-
-  grid.innerHTML = recs.map(item => `
-    <div class="rec-card" onclick="loadFromRec('${item.url}')">
-      <img src="${item.img}" class="rec-img" alt="${item.title}" onerror="this.style.background='linear-gradient(135deg, #a29bfe, #6c5ce7)'"></img>
-      <div class="rec-title">${item.title}</div>
-      <div class="rec-artist">${item.artist}</div>
-    </div>
-  `).join('');
-}
-
-function loadFromRec(url) {
-  const input = document.getElementById('urlInput');
-  input.value = url;
-  showPopup('🚀 Memuat...');
-  document.getElementById('fetchBtn').click();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-let currentResults = [];
-
 document.getElementById('fetchBtn').addEventListener('click', async () => {
-  const inputVal = document.getElementById('urlInput').value.trim();
-  if (!inputVal) return showPopup('⚠️ Masukkan judul lagu atau URL.');
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return alert('Masukkan URL terlebih dahulu.');
 
   document.querySelector('.loading').style.display = 'block';
   document.querySelector('.result').style.display = 'none';
@@ -123,90 +75,58 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     const res = await fetch('/metadata', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: inputVal })
+      body: JSON.stringify({ url })
     });
     const data = await res.json();
 
     if (data.success) {
-      currentResults = data.results;
-      renderResults(data.results);
+      const resultDiv = document.querySelector('.result');
+      resultDiv.innerHTML = `
+        ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+        <div class="meta">
+          <p><strong>Judul:</strong> ${data.title}</p>
+          <p><strong>Channel/Username:</strong> ${data.channel}</p>
+          <p><strong>Likes:</strong> ${data.like_count}</p>
+          <p><strong>Views:</strong> ${data.view_count}</p>
+          <p><strong>Platform:</strong> ${data.platform}</p>
+        </div>
+        <div class="download-btns">
+          <button class="dl-video" data-url="${url}">📥 Video</button>
+          <button class="dl-audio" data-url="${url}">🎵 Audio (MP3)</button>
+          <button class="dl-thumb" data-url="${url}">🖼️ Thumbnail</button>
+        </div>
+      `;
+      resultDiv.style.display = 'block';
+
+      document.querySelectorAll('.dl-video, .dl-audio, .dl-thumb').forEach(btn => {
+        btn.onclick = (e) => {
+          const format = e.target.classList.contains('dl-video') ? 'video' : 
+                         e.target.classList.contains('dl-audio') ? 'audio' : 'thumb';
+          download(e.target.dataset.url, format);
+        };
+      });
     } else {
       throw new Error(data.error || 'Gagal mengambil metadata');
     }
   } catch (e) {
-    showPopup('❌ Error: ' + e.message);
+    alert('Error: ' + e.message);
   } finally {
     document.querySelector('.loading').style.display = 'none';
   }
 });
 
-function renderResults(results) {
-  if (!results || !Array.isArray(results)) return;
-  const resultDiv = document.querySelector('.result');
-  resultDiv.style.display = 'block';
-
-  if (results.length === 1) {
-    renderSingleResult(results[0], resultDiv);
-  } else {
-    let html = `
-      <h3 style="margin-bottom:15px; text-align:center;">🔍 Pilih Hasil Pencarian:</h3>
-      <div class="result-slider">
-    `;
-    html += results.map((item, index) => `
-      <div class="slider-card" onclick="selectResult(${index})">
-        <img src="${item.thumbnailUrl}" alt="${item.title}">
-        <div class="slider-info">
-          <div class="slider-title">${item.title}</div>
-          <div class="slider-artist">${item.artist} • ${item.year}</div>
-        </div>
-      </div>
-    `).join('');
-    html += `</div>`;
-    resultDiv.innerHTML = html;
-  }
-}
-
-function selectResult(index) {
-  const item = currentResults[index];
-  const resultDiv = document.querySelector('.result');
-  renderSingleResult(item, resultDiv);
-}
-
-function renderSingleResult(data, container) {
-  container.innerHTML = `
-    <div class="single-result-view">
-      ${data.thumbnailUrl ? `<img src="${data.thumbnailUrl}" alt="Thumbnail" class="main-thumb">` : ''}
-      <div class="meta">
-        <p><strong>Judul</strong> <span>${data.title}</span></p>
-        <p><strong>Artis</strong> <span>${data.artist}</span></p>
-        <p><strong>Tahun</strong> <span>${data.year}</span></p>
-        <p><strong>Platform</strong> <span>${data.platform}</span></p>
-      </div>
-      <div class="download-btns">
-        <button class="dl-video" data-url="${data.downloadUrl}">🎥 Video MP4</button>
-        <button class="dl-audio" data-url="${data.downloadUrl}">🎵 Audio MP3</button>
-        <button class="dl-thumb" data-url="${data.downloadUrl}">🖼️ Thumbnail</button>
-      </div>
-      <button onclick="renderResults(currentResults)" style="margin-top:15px; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); width:100%;">🔙 Kembali ke Hasil</button>
-    </div>
-  `;
-  container.querySelectorAll('.dl-video, .dl-audio, .dl-thumb').forEach(btn => {
-    btn.onclick = e => {
-      const format = e.target.classList.contains('dl-video') ? 'video' : e.target.classList.contains('dl-audio') ? 'audio' : 'thumb';
-      download(e.target.dataset.url, format);
-    };
-  });
-}
-
 async function download(url, format) {
-  showPopup('⏳ Sedang memproses download...');
+  const popup = document.getElementById('popup');
+  
   try {
     const res = await fetch('/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, format })
     });
+    
     const data = await res.json();
+    
     if (data.success) {
       const link = document.createElement('a');
       link.href = data.filePath;
@@ -214,25 +134,43 @@ async function download(url, format) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showPopup('✅ Download berhasil!');
+
+      // Auto-delete downloaded file on server after 60 seconds
+      try {
+        setTimeout(() => {
+          fetch('/cleanup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: data.fileName })
+          }).then(r => r.json()).then(resp => {
+            if (!resp.success) console.warn('Auto-cleanup failed:', resp.error);
+          }).catch(e => console.warn('Auto-cleanup error', e));
+        }, 60000);
+      } catch (e) {
+        console.warn('Could not schedule auto-cleanup', e);
+      }
+
+      popup.textContent = '✅ Download berhasil!';
+      popup.className = 'popup show';
+      setTimeout(() => popup.classList.remove('show'), 3000);
     } else {
       throw new Error(data.error || 'Gagal download');
     }
   } catch (e) {
-    showPopup('❌ Gagal: ' + e.message);
+    popup.textContent = '❌ Gagal: ' + e.message;
+    popup.className = 'popup show';
+    setTimeout(() => popup.classList.remove('show'), 3000);
   }
 }
 
 function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   if (tab === 'downloader') {
-    document.querySelector('.result').style.display = 'none';
-    document.getElementById('recommendations-section').style.display = 'block';
+    document.querySelector('.result').style.display = 'block';
     document.getElementById('history').style.display = 'none';
     event.target.classList.add('active');
   } else if (tab === 'history') {
     document.querySelector('.result').style.display = 'none';
-    document.getElementById('recommendations-section').style.display = 'none';
     document.getElementById('history').style.display = 'block';
     loadHistory();
     event.target.classList.add('active');
@@ -243,31 +181,48 @@ async function loadHistory() {
   const res = await fetch('/api/history');
   const data = await res.json();
   const list = document.getElementById('history-list');
-  if (data.length === 0) {
-    list.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Belum ada riwayat unduhan.</p>';
-    return;
-  }
-  list.innerHTML = data.map(item => {
-    const isAudio = item.filename.toLowerCase().endsWith('.mp3');
-    const icon = isAudio
-      ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>'
-      : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
-    return `
-      <div>
-        <div style="width:50px; height:50px; background:rgba(100,100,255,0.1); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--primary);">${icon}</div>
-        <div style="flex:1; min-width:0;">
-          <strong>${item.title || '—'}</strong><br>
-          <small>${item.platform} • ${new Date(item.timestamp).toLocaleDateString()}</small>
-        </div>
-        <a href="/downloads/${item.filename}" download style="color:var(--primary); text-decoration:none; font-weight:600;">📥</a>
-      </div>
-    `;
-  }).join('');
-}
+  list.innerHTML = data.length === 0 
+    ? '<p>Belum ada riwayat.</p>' 
+    : data.map(item => {
+      // ✅ Cek tipe file
+      const isAudio = item.filename.toLowerCase().endsWith('.mp3');
+      const isThumbnail = item.filename.toLowerCase().endsWith('.jpg') || 
+                           item.filename.toLowerCase().endsWith('.png') ||
+                           item.filename.toLowerCase().endsWith('.webp');
+      
+      // ✅ Pilih ikon/placeholder sesuai tipe file
+      let thumbnailSrc, thumbnailStyle;
+      
+      if (isAudio) {
+        // 🎵 Untuk audio: ikon musik
+        thumbnailSrc = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmVyc2lvbj0iMS4xIiB2aWV3Qm94PSIwIDAgNTAgNTAiPjxwYXRoIGQ9Ik0xMS41LDI2LjI2N0wxMy4yNjcsMjZsLTIuNzY3LTcuMjY3TDI1LjUsMzRMMTIuNSw3TDE1LjI2Nyw3bC0yLjc2Ny03TDYsMTUuNTY3TDAsMTRsMTAsMjBjMS4xNDcsMC4yMjgsMi4zNDMsMC4zNTUsMy41LDQuMDMzTDM0LjUsMzFjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY3Yy0wLjE3LC0wLjA4My0wLjM0MSwtMC4xNjctMC41LC0wLjI1TDM1LjUsMjVjMC4xNzIsMC4wNjcsMC4zNDMsMC4xMzUsMC41LDAuMjA4bDEuODMzLTAuNDY7';
+        thumbnailStyle = 'width:50px; height:50px; background:#e0e0ff; display:flex; align-items:center; justify-content:center; border-radius:6px;';
+      } else if (isThumbnail) {
+        // 🖼️ Untuk thumbnail: tampilkan gambar
+        thumbnailSrc = `/downloads/${item.filename}`;
+        thumbnailStyle = 'width:50px; height:50px; object-fit:cover; border-radius:6px; background:#f0f0f0;';
+      } else {
+        // 📹 Untuk video: gunakan placeholder
+        thumbnailSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIGZpbGw9IiNmZmYiIC8+PGxpbmUgeDE9IjEwIiB5MT0iMTAiIHgyPSI0MCIgeTI9IjQwIiBzdHJva2U9IiM3NzciIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSIxMCIgeTE9IjQwIiB4Mj0iNDAiIHkyPSIxMCIgc3Ryb2tlPSIjNzc3IiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=';
+        thumbnailStyle = 'width:50px; height:50px; object-fit:cover; border-radius:6px; background:#f0f0f0;';
+      }
 
-function showPopup(msg) {
-  const popup = document.getElementById('popup');
-  popup.textContent = msg;
-  popup.className = 'popup show';
-  setTimeout(() => popup.classList.remove('show'), 3000);
+      return `
+        <div style="border:1px solid #eee; padding:12px; margin:8px 0; border-radius:8px; background:#fafafa; display:flex; gap:12px; align-items:center;">
+          <!-- Thumbnail atau Icon -->
+          <img src="${thumbnailSrc}" alt="${isAudio ? 'Audio File' : 'Thumbnail'}" style="${thumbnailStyle}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIGZpbGw9IiNmZmYiIC8+PGxpbmUgeDE9IjEwIiB5MT0iMTAiIHgyPSI0MCIgeTI9IjQwIiBzdHJva2U9IiM3NzciIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSIxMCIgeTE9IjQwIiB4Mj0iNDAiIHkyPSIxMCIgc3Ryb2tlPSIjNzc3IiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=';" />
+          
+          <!-- Info -->
+          <div style="flex:1; min-width:0;">
+            <strong>${item.title || '—'}</strong><br>
+            <small style="color:#666;">${item.platform} • ${new Date(item.timestamp).toLocaleString()}</small>
+          </div>
+          
+          <!-- Tombol Unduh Ulang -->
+          <a href="/downloads/${item.filename}" download style="color:#6a5acd; text-decoration:none; font-weight:600; white-space:nowrap;">
+            📥 Unduh Ulang
+          </a>
+        </div>
+      `;
+    }).join('');
 }
