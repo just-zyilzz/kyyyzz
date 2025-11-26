@@ -36,6 +36,21 @@ function initTheme() {
   }
 }
 
+// Detect if input is URL or keywords
+function isUrl(text) {
+  try {
+    new URL(text);
+    return true;
+  } catch {
+    return text.includes('youtube.com') ||
+      text.includes('youtu.be') ||
+      text.includes('tiktok.com') ||
+      text.includes('instagram.com') ||
+      text.includes('facebook.com') ||
+      text.includes('fb.watch');
+  }
+}
+
 // Detect platform from URL
 function detectPlatform(url) {
   const lowerUrl = url.toLowerCase();
@@ -47,73 +62,20 @@ function detectPlatform(url) {
 }
 
 document.getElementById('fetchBtn').addEventListener('click', async () => {
-  const url = document.getElementById('urlInput').value.trim();
-  if (!url) return alert('Masukkan URL terlebih dahulu.');
-
-  const platform = detectPlatform(url);
-  if (platform === 'Unknown') {
-    return alert('Platform tidak didukung. Gunakan YouTube, TikTok, Instagram, atau Facebook.');
-  }
+  const input = document.getElementById('urlInput').value.trim();
+  if (!input) return alert('Masukkan URL atau keywords terlebih dahulu.');
 
   document.querySelector('.loading').style.display = 'block';
   document.querySelector('.result').style.display = 'none';
 
   try {
-    let metadata;
-
-    // Get metadata based on platform
-    if (platform === 'YouTube') {
-      const res = await fetch('/api/thumb', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      metadata = await res.json();
-    } else if (platform === 'TikTok') {
-      const res = await fetch('/api/tiktok-meta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      metadata = await res.json();
+    // Check if input is URL or search keywords
+    if (isUrl(input)) {
+      // Handle as URL
+      await handleUrlDownload(input);
     } else {
-      // For Instagram/Facebook, show basic info
-      metadata = {
-        success: true,
-        title: 'Media dari ' + platform,
-        platform: platform,
-        thumbnailUrl: null
-      };
-    }
-
-    if (metadata.success) {
-      const resultDiv = document.querySelector('.result');
-      resultDiv.innerHTML = `
-        ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
-        <div class="meta">
-          <p><strong>Platform:</strong> ${platform}</p>
-          ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
-          ${metadata.author ? `<p><strong>Author:</strong> ${metadata.author}</p>` : ''}
-          ${metadata.duration ? `<p><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
-          ${metadata.stats ? `<p><strong>Views:</strong> ${metadata.stats.views} | <strong>Likes:</strong> ${metadata.stats.likes}</p>` : ''}
-        </div>
-        <div class="download-btns">
-          <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
-          ${platform === 'YouTube' || platform === 'TikTok' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
-        </div>
-      `;
-      resultDiv.style.display = 'block';
-
-      // Attach download handlers
-      document.querySelectorAll('.dl-video, .dl-audio').forEach(btn => {
-        btn.onclick = (e) => {
-          const format = e.target.classList.contains('dl-audio') ? 'audio' : 'video';
-          const platform = e.target.dataset.platform;
-          download(e.target.dataset.url, format, platform);
-        };
-      });
-    } else {
-      throw new Error(metadata.error || 'Gagal mengambil metadata');
+      // Handle as YouTube search
+      await handleYouTubeSearch(input);
     }
   } catch (e) {
     alert('Error: ' + e.message);
@@ -121,6 +83,117 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     document.querySelector('.loading').style.display = 'none';
   }
 });
+
+// Handle YouTube search
+async function handleYouTubeSearch(keywords) {
+  const res = await fetch('/api/yt-search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: keywords, limit: 10, type: 'video' })
+  });
+
+  const data = await res.json();
+
+  if (!data.success || data.results.length === 0) {
+    throw new Error('Tidak ada hasil ditemukan');
+  }
+
+  // Display search results
+  const resultDiv = document.querySelector('.result');
+  let html = `<h3 style="margin-bottom: 20px;">🔍 Hasil Pencarian: "${keywords}"</h3>`;
+
+  data.results.forEach((video, index) => {
+    html += `
+      <div style="display: flex; gap: 15px; padding: 15px; background: var(--input-bg); border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s;" onclick="selectVideo('${video.url}', '${video.title.replace(/'/g, "\\'")}')">
+        <img src="${video.thumbnail}" alt="${video.title}" style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px;">
+        <div style="flex: 1;">
+          <h4 style="margin: 0 0 8px 0; font-size: 14px; color: var(--text-primary);">${video.title}</h4>
+          <p style="margin: 4px 0; font-size: 12px; color: var(--text-secondary);">
+            👤 ${video.author.name} | 👁️ ${video.views.toLocaleString()} views
+          </p>
+          <p style="margin: 4px 0; font-size: 12px; color: var(--text-secondary);">
+            ⏱️ ${video.duration.timestamp} | 📅 ${video.ago}
+          </p>
+        </div>
+      </div>
+    `;
+  });
+
+  resultDiv.innerHTML = html;
+  resultDiv.style.display = 'block';
+}
+
+// Select video from search results
+async function selectVideo(url, title) {
+  document.getElementById('urlInput').value = url;
+  await handleUrlDownload(url);
+}
+
+// Handle URL download (existing logic)
+async function handleUrlDownload(url) {
+  const platform = detectPlatform(url);
+
+  if (platform === 'Unknown') {
+    throw new Error('Platform tidak didukung. Gunakan YouTube, TikTok, Instagram, atau Facebook.');
+  }
+
+  let metadata;
+
+  // Get metadata based on platform
+  if (platform === 'YouTube') {
+    const res = await fetch('/api/thumb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    metadata = await res.json();
+  } else if (platform === 'TikTok') {
+    const res = await fetch('/api/tiktok-meta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    metadata = await res.json();
+  } else {
+    // For Instagram/Facebook, show basic info
+    metadata = {
+      success: true,
+      title: 'Media dari ' + platform,
+      platform: platform,
+      thumbnailUrl: null
+    };
+  }
+
+  if (metadata.success) {
+    const resultDiv = document.querySelector('.result');
+    resultDiv.innerHTML = `
+      ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+      <div class="meta">
+        <p><strong>Platform:</strong> ${platform}</p>
+        ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+        ${metadata.author ? `<p><strong>Author:</strong> ${metadata.author}</p>` : ''}
+        ${metadata.duration ? `<p><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
+        ${metadata.stats ? `<p><strong>Views:</strong> ${metadata.stats.views} | <strong>Likes:</strong> ${metadata.stats.likes}</p>` : ''}
+      </div>
+      <div class="download-btns">
+        <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
+        ${platform === 'YouTube' || platform === 'TikTok' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
+      </div>
+    `;
+    resultDiv.style.display = 'block';
+
+    // Attach download handlers
+    document.querySelectorAll('.dl-video, .dl-audio').forEach(btn => {
+      btn.onclick = (e) => {
+        const format = e.target.classList.contains('dl-audio') ? 'audio' : 'video';
+        const platform = e.target.dataset.platform;
+        download(e.target.dataset.url, format, platform);
+      };
+    });
+  } else {
+    throw new Error(metadata.error || 'Gagal mengambil metadata');
+  }
+}
 
 // Trigger auto-download
 function triggerDownload(url, filename) {
