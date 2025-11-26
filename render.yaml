@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: media-downloader
-    env: docker
-    plan: free
-    envVars:
-      - key: SESSION_SECRET
-        generateValue: true
-

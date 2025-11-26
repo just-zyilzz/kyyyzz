@@ -1,10 +1,9 @@
 /**
  * API Endpoint: /api/facebook
- * Download Facebook video
+ * Download Facebook/Instagram video menggunakan Snapsave API
  */
 
-const { isValidUrl, detectPlatform } = require('../lib/utils');
-const { downloadMedia } = require('../lib/ytdlp');
+const Instagram = require('../lib/instagram');
 const { getUserFromRequest } = require('../lib/session');
 const { saveDownload } = require('../lib/db');
 
@@ -14,31 +13,46 @@ module.exports = async (req, res) => {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url, title, platform } = req.body;
+    const { url, title } = req.body;
 
     // Validate URL
-    if (!url || !isValidUrl(url)) {
+    if (!url) {
         return res.status(400).json({
             success: false,
-            error: 'URL tidak valid. Pastikan dimulai dengan https://'
+            error: 'URL tidak boleh kosong'
         });
     }
 
-    // Check if URL is Facebook
+    // Check if URL is Facebook or Instagram
     const lowerUrl = url.toLowerCase();
-    if (!lowerUrl.includes('facebook.com') && !lowerUrl.includes('fb.watch')) {
+    const isFacebook = lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch');
+    const isInstagram = lowerUrl.includes('instagram.com');
+
+    if (!isFacebook && !isInstagram) {
         return res.status(400).json({
             success: false,
-            error: 'Endpoint ini hanya untuk Facebook'
+            error: 'Endpoint ini hanya untuk Facebook atau Instagram'
         });
     }
 
     try {
-        // Download video
-        const result = await downloadMedia(url, 'video');
+        // Download using Instagram library (works for both FB and IG)
+        const result = await Instagram(url);
+
+        if (result.msg) {
+            return res.status(500).json({
+                success: false,
+                error: result.msg
+            });
+        }
 
         // Get user from JWT (if logged in)
         const user = getUserFromRequest(req);
+
+        // Get first download URL
+        const downloadUrl = Array.isArray(result.url) ? result.url[0] : result.url;
+        const platform = isFacebook ? 'Facebook' : 'Instagram';
+        const fileName = `${platform.toLowerCase()}_${Date.now()}.mp4`;
 
         // Save to database history
         if (user && user.id) {
@@ -46,21 +60,28 @@ module.exports = async (req, res) => {
                 await saveDownload(
                     user.id,
                     url,
-                    title || '—',
-                    platform || detectPlatform(url),
-                    result.fileName
+                    title || result.metadata?.caption || result.metadata?.username || '—',
+                    platform,
+                    fileName
                 );
             } catch (dbError) {
                 console.error('Failed to save history:', dbError);
             }
         }
 
-        res.json(result);
+        // Return response
+        res.json({
+            success: true,
+            downloadUrl: downloadUrl,
+            urls: result.url, // All URLs if multiple
+            fileName: fileName,
+            metadata: result.metadata
+        });
     } catch (error) {
-        console.error('❌ Facebook download error:', error.message);
+        console.error(`❌ ${isFacebook ? 'Facebook' : 'Instagram'} download error:`, error.message);
         res.json({
             success: false,
-            error: 'Download gagal. Pastikan video bersifat publik'
+            error: 'Download gagal. Pastikan konten bersifat publik dan coba lagi'
         });
     }
 };
