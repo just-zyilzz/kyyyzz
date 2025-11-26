@@ -69,8 +69,15 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
         body: JSON.stringify({ url })
       });
       metadata = await res.json();
+    } else if (platform === 'TikTok') {
+      const res = await fetch('/api/tiktok-meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      metadata = await res.json();
     } else {
-      // For other platforms, we'll show basic info
+      // For Instagram/Facebook, show basic info
       metadata = {
         success: true,
         title: 'Media dari ' + platform,
@@ -82,11 +89,13 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     if (metadata.success) {
       const resultDiv = document.querySelector('.result');
       resultDiv.innerHTML = `
-        ${metadata.thumbnailUrl || metadata.thumbnail ? `<img src="${metadata.thumbnailUrl || metadata.thumbnail}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+        ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
         <div class="meta">
           <p><strong>Platform:</strong> ${platform}</p>
           ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+          ${metadata.author ? `<p><strong>Author:</strong> ${metadata.author}</p>` : ''}
           ${metadata.duration ? `<p><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
+          ${metadata.stats ? `<p><strong>Views:</strong> ${metadata.stats.views} | <strong>Likes:</strong> ${metadata.stats.likes}</p>` : ''}
         </div>
         <div class="download-btns">
           <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
@@ -112,6 +121,17 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
     document.querySelector('.loading').style.display = 'none';
   }
 });
+
+// Trigger auto-download
+function triggerDownload(url, filename) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'download';
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
 
 async function download(url, format, platform) {
   const popup = document.getElementById('popup');
@@ -148,10 +168,11 @@ async function download(url, format, platform) {
     if (data.success) {
       // Get download URL from different response formats
       const downloadUrl = data.downloadUrl || data.download || (data.urls && data.urls[0]);
+      const fileName = data.fileName || `download_${Date.now()}.${format === 'audio' ? 'mp3' : 'mp4'}`;
 
       if (downloadUrl) {
-        // Open download in new tab
-        window.open(downloadUrl, '_blank');
+        // Trigger auto-download
+        triggerDownload(downloadUrl, fileName);
 
         popup.textContent = '✅ Download dimulai!';
         popup.className = 'popup show';
