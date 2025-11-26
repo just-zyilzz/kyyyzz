@@ -1,10 +1,9 @@
 /**
  * API Endpoint: /api/ytmp4
- * Download YouTube video dalam format MP4
+ * Download YouTube video menggunakan Savetube API
  */
 
-const { isValidUrl, detectPlatform } = require('../lib/utils');
-const { downloadMedia } = require('../lib/ytdlp');
+const savetube = require('../lib/savetube');
 const { getUserFromRequest } = require('../lib/session');
 const { saveDownload } = require('../lib/db');
 
@@ -14,13 +13,13 @@ module.exports = async (req, res) => {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url, title, platform } = req.body;
+    const { url, title, quality = '720' } = req.body;
 
     // Validate URL
-    if (!url || !isValidUrl(url)) {
+    if (!url) {
         return res.status(400).json({
             success: false,
-            error: 'URL tidak valid. Pastikan dimulai dengan https://'
+            error: 'URL tidak boleh kosong'
         });
     }
 
@@ -29,13 +28,20 @@ module.exports = async (req, res) => {
     if (!lowerUrl.includes('youtube.com') && !lowerUrl.includes('youtu.be')) {
         return res.status(400).json({
             success: false,
-            error: 'Endpoint ini hanya untuk YouTube. Gunakan /api/tiktok untuk TikTok'
+            error: 'Endpoint ini hanya untuk YouTube'
         });
     }
 
     try {
-        // Download video
-        const result = await downloadMedia(url, 'video');
+        // Download video menggunakan savetube
+        const result = await savetube.download(url, quality);
+
+        if (!result.status) {
+            return res.status(result.code).json({
+                success: false,
+                error: result.error
+            });
+        }
 
         // Get user from JWT (if logged in)
         const user = getUserFromRequest(req);
@@ -46,16 +52,25 @@ module.exports = async (req, res) => {
                 await saveDownload(
                     user.id,
                     url,
-                    title || '—',
-                    platform || detectPlatform(url),
-                    result.fileName
+                    title || result.result.title || '—',
+                    'YouTube',
+                    result.result.id + '.mp4'
                 );
             } catch (dbError) {
                 console.error('Failed to save history:', dbError);
             }
         }
 
-        res.json(result);
+        // Return response in expected format
+        res.json({
+            success: true,
+            title: result.result.title,
+            thumbnail: result.result.thumbnail,
+            downloadUrl: result.result.download,
+            fileName: result.result.id + '.mp4',
+            quality: result.result.quality,
+            duration: result.result.duration
+        });
     } catch (error) {
         console.error('❌ Download error:', error.message);
         res.json({

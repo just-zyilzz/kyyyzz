@@ -1,10 +1,9 @@
 /**
  * API Endpoint: /api/thumb
- * Get metadata dan thumbnail dari URL
+ * Get YouTube video thumbnail and metadata
  */
 
-const { isValidUrl, isSupportedPlatform } = require('../lib/utils');
-const { getMetadata } = require('../lib/ytdlp');
+const savetube = require('../lib/savetube');
 
 module.exports = async (req, res) => {
     // Only allow POST
@@ -15,33 +14,48 @@ module.exports = async (req, res) => {
     const { url } = req.body;
 
     // Validate URL
-    if (!url || !isValidUrl(url)) {
+    if (!url) {
         return res.status(400).json({
             success: false,
-            error: 'URL tidak valid. Pastikan dimulai dengan https://'
+            error: 'URL tidak boleh kosong'
         });
     }
 
-    // Check supported platform
-    if (!isSupportedPlatform(url)) {
+    // Check if URL is YouTube
+    const lowerUrl = url.toLowerCase();
+    if (!lowerUrl.includes('youtube.com') && !lowerUrl.includes('youtu.be')) {
         return res.status(400).json({
             success: false,
-            error: 'Hanya YouTube, TikTok, Facebook, dan Instagram Reels yang didukung'
+            error: 'Endpoint ini hanya untuk YouTube'
         });
     }
 
     try {
-        const metadata = await getMetadata(url);
+        // Get metadata using savetube (download with any format just to get info)
+        const result = await savetube.download(url, '720');
 
-        // Store in session/cookie for later use (optional)
-        // For serverless, we can pass this data in subsequent requests
+        if (!result.status) {
+            return res.status(result.code).json({
+                success: false,
+                error: result.error
+            });
+        }
 
-        res.json(metadata);
+        // Return metadata
+        res.json({
+            success: true,
+            title: result.result.title,
+            thumbnail: result.result.thumbnail,
+            thumbnailUrl: result.result.thumbnail,
+            duration: result.result.duration,
+            platform: 'YouTube',
+            id: result.result.id
+        });
     } catch (error) {
-        console.error('❌ Metadata error:', error.message);
+        console.error('❌ Thumbnail error:', error.message);
         res.json({
             success: false,
-            error: 'Gagal ambil metadata. Cek URL valid?'
+            error: 'Gagal mengambil info video'
         });
     }
 };
