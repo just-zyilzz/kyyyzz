@@ -1,12 +1,11 @@
 /**
  * API Endpoint: /api/ytmp3
- * Download YouTube audio dan convert ke MP3
+ * Download YouTube audio menggunakan Savetube API
  */
 
-const { isValidUrl, detectPlatform } = require('../lib/utils');
-const { downloadMedia, convertToMp3 } = require('../lib/ytdlp');
+const savetube = require('../lib/savetube');
 const { getUserFromRequest } = require('../lib/session');
-const { saveDownload, updateDownloadFilename } = require('../lib/db');
+const { saveDownload } = require('../lib/db');
 
 module.exports = async (req, res) => {
     // Only allow POST
@@ -14,13 +13,13 @@ module.exports = async (req, res) => {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url, title, platform } = req.body;
+    const { url, title } = req.body;
 
     // Validate URL
-    if (!url || !isValidUrl(url)) {
+    if (!url) {
         return res.status(400).json({
             success: false,
-            error: 'URL tidak valid. Pastikan dimulai dengan https://'
+            error: 'URL tidak boleh kosong'
         });
     }
 
@@ -29,42 +28,54 @@ module.exports = async (req, res) => {
     if (!lowerUrl.includes('youtube.com') && !lowerUrl.includes('youtu.be')) {
         return res.status(400).json({
             success: false,
-            error: 'Endpoint ini hanya untuk YouTube. Gunakan /api/tiktok untuk TikTok'
+            error: 'Endpoint ini hanya untuk YouTube'
         });
     }
 
     try {
-        // Download audio
-        const downloadResult = await downloadMedia(url, 'audio');
+        // Download audio MP3 menggunakan savetube
+        const result = await savetube.download(url, 'mp3');
+
+        if (!result.status) {
+            return res.status(result.code).json({
+                success: false,
+                error: result.error
+            });
+        }
 
         // Get user from JWT (if logged in)
         const user = getUserFromRequest(req);
 
-        // Convert to MP3
-        const convertResult = await convertToMp3(downloadResult.fileName);
-
-        // Save/update database history
+        // Save to database history
         if (user && user.id) {
             try {
-                // Save with final MP3 filename
                 await saveDownload(
                     user.id,
                     url,
-                    title || '—',
-                    platform || detectPlatform(url),
-                    convertResult.fileName
+                    title || result.result.title || '—',
+                    'YouTube',
+                    result.result.id + '.mp3'
                 );
             } catch (dbError) {
                 console.error('Failed to save history:', dbError);
             }
         }
 
-        res.json(convertResult);
+        // Return response in expected format
+        res.json({
+            success: true,
+            title: result.result.title,
+            thumbnail: result.result.thumbnail,
+            downloadUrl: result.result.download,
+            fileName: result.result.id + '.mp3',
+            format: 'mp3',
+            duration: result.result.duration
+        });
     } catch (error) {
-        console.error('❌ Download/Convert error:', error.message);
+        console.error('❌ Download error:', error.message);
         res.json({
             success: false,
-            error: error.message.includes('FFmpeg') ? 'Konversi audio gagal' : 'Download gagal. Coba lagi'
+            error: 'Download gagal. Coba lagi'
         });
     }
 };
