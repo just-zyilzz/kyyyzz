@@ -40,9 +40,9 @@ function initTheme() {
 function detectPlatform(url) {
   const lowerUrl = url.toLowerCase();
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'YouTube';
-  if (lowerUrl.includes('tiktok.com')) return 'TikTok';
+  if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vt.tiktok.com') || lowerUrl.includes('vm.tiktok.com')) return 'TikTok';
   if (lowerUrl.includes('instagram.com')) return 'Instagram';
-  if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch')) return 'Facebook';
+  if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) return 'Facebook';
   return 'Unknown';
 }
 
@@ -59,27 +59,38 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
   document.querySelector('.result').style.display = 'none';
 
   try {
-    // Get metadata from thumb endpoint
-    const res = await fetch('/api/thumb', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
+    let metadata;
 
-    const data = await res.json();
+    // Get metadata based on platform
+    if (platform === 'YouTube') {
+      const res = await fetch('/api/thumb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      metadata = await res.json();
+    } else {
+      // For other platforms, we'll show basic info
+      metadata = {
+        success: true,
+        title: 'Media dari ' + platform,
+        platform: platform,
+        thumbnailUrl: null
+      };
+    }
 
-    if (data.success) {
+    if (metadata.success) {
       const resultDiv = document.querySelector('.result');
       resultDiv.innerHTML = `
-        ${data.thumbnailUrl || data.thumbnail ? `<img src="${data.thumbnailUrl || data.thumbnail}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+        ${metadata.thumbnailUrl || metadata.thumbnail ? `<img src="${metadata.thumbnailUrl || metadata.thumbnail}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
         <div class="meta">
-          <p><strong>Judul:</strong> ${data.title || '—'}</p>
           <p><strong>Platform:</strong> ${platform}</p>
-          ${data.duration ? `<p><strong>Durasi:</strong> ${data.duration}</p>` : ''}
+          ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+          ${metadata.duration ? `<p><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
         </div>
         <div class="download-btns">
           <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
-          ${platform === 'YouTube' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download MP3</button>` : ''}
+          ${platform === 'YouTube' || platform === 'TikTok' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
         </div>
       `;
       resultDiv.style.display = 'block';
@@ -93,7 +104,7 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
         };
       });
     } else {
-      throw new Error(data.error || 'Gagal mengambil metadata');
+      throw new Error(metadata.error || 'Gagal mengambil metadata');
     }
   } catch (e) {
     alert('Error: ' + e.message);
@@ -106,8 +117,9 @@ async function download(url, format, platform) {
   const popup = document.getElementById('popup');
 
   // Show loading
-  popup.textContent = '⏳ Downloading...';
+  popup.textContent = '⏳ Sedang memproses...';
   popup.className = 'popup show';
+  popup.style.background = 'rgba(28, 28, 30, 0.95)';
 
   try {
     let endpoint;
@@ -121,6 +133,8 @@ async function download(url, format, platform) {
       body.format = format;
     } else if (platform === 'Instagram' || platform === 'Facebook') {
       endpoint = '/api/facebook';
+    } else {
+      throw new Error('Platform tidak didukung');
     }
 
     const res = await fetch(endpoint, {
@@ -132,26 +146,29 @@ async function download(url, format, platform) {
     const data = await res.json();
 
     if (data.success) {
-      // Open download URL in new tab
-      const downloadUrl = data.downloadUrl || data.download;
+      // Get download URL from different response formats
+      const downloadUrl = data.downloadUrl || data.download || (data.urls && data.urls[0]);
+
       if (downloadUrl) {
+        // Open download in new tab
         window.open(downloadUrl, '_blank');
+
         popup.textContent = '✅ Download dimulai!';
         popup.className = 'popup show';
+        popup.style.background = '#30D158';
         setTimeout(() => popup.classList.remove('show'), 3000);
       } else {
-        throw new Error('Download URL not found');
+        throw new Error('Download URL tidak ditemukan');
       }
     } else {
       throw new Error(data.error || 'Gagal download');
     }
   } catch (e) {
-    popup.textContent = '❌ Gagal: ' + e.message;
+    popup.textContent = '❌ Error: ' + e.message;
     popup.className = 'popup show';
-    popup.style.background = '#f44336';
+    popup.style.background = '#FF453A';
     setTimeout(() => {
       popup.classList.remove('show');
-      popup.style.background = '#4caf50';
-    }, 3000);
+    }, 4000);
   }
 }
