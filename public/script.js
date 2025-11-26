@@ -126,7 +126,18 @@ async function handleYouTubeSearch(keywords) {
 // Select video from search results
 async function selectVideo(url, title) {
   document.getElementById('urlInput').value = url;
-  await handleUrlDownload(url);
+
+  // Show loading
+  document.querySelector('.loading').style.display = 'block';
+  document.querySelector('.result').style.display = 'none';
+
+  try {
+    await handleUrlDownload(url);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    document.querySelector('.loading').style.display = 'none';
+  }
 }
 
 // Handle URL download (existing logic)
