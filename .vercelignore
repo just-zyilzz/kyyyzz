@@ -1,0 +1,15 @@
+node_modules
+downloads
+yt_cache
+database
+server.log
+.git
+*.log
+server.js
+auto-deploy.ps1
+auto-deploy-handler.ps1
+payload.json
+Dockerfile
+render.yaml
+DEPLOY.md
+SELF_HOSTING_GUIDE.md
