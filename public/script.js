@@ -1,5 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => { initTheme(); });
 
+// Utility function to escape HTML/JS to prevent XSS
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // Theme handling
 function initTheme() {
   const btn = document.getElementById('theme-toggle');
@@ -94,25 +101,32 @@ async function handleYouTubeSearch(keywords) {
 
   const data = await res.json();
 
-  if (!data.success || data.results.length === 0) {
+  // Defensive check for undefined results
+  if (!data.success || !data.results || !Array.isArray(data.results) || data.results.length === 0) {
     throw new Error('Tidak ada hasil ditemukan');
   }
 
   // Display search results
   const resultDiv = document.querySelector('.result');
-  let html = `<h3 style="margin-bottom: 20px;">🔍 Hasil Pencarian: "${keywords}"</h3>`;
+  let html = `<h3 style="margin-bottom: 20px;">🔍 Hasil Pencarian: "${escapeHtml(keywords)}"</h3>`;
 
   data.results.forEach((video, index) => {
+    // Escape data to prevent XSS
+    const escapedTitle = escapeHtml(video.title || '');
+    const escapedAuthor = escapeHtml(video.author?.name || 'Unknown');
+    const escapedUrl = escapeHtml(video.url || '');
+    const escapedThumbnail = escapeHtml(video.thumbnail || '');
+
     html += `
-      <div style="display: flex; gap: 15px; padding: 15px; background: var(--input-bg); border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s;" onclick="selectVideo('${video.url}', '${video.title.replace(/'/g, "\\'")}')">
-        <img src="${video.thumbnail}" alt="${video.title}" style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px;">
+      <div class="search-result-item" data-video-url="${escapedUrl}" data-video-title="${escapedTitle}" style="display: flex; gap: 15px; padding: 15px; background: var(--input-bg); border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s;">
+        <img src="${escapedThumbnail}" alt="${escapedTitle}" style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px;">
         <div style="flex: 1;">
-          <h4 style="margin: 0 0 8px 0; font-size: 14px; color: var(--text-primary);">${video.title}</h4>
+          <h4 style="margin: 0 0 8px 0; font-size: 14px; color: var(--text-primary);">${escapedTitle}</h4>
           <p style="margin: 4px 0; font-size: 12px; color: var(--text-secondary);">
-            👤 ${video.author.name} | 👁️ ${video.views.toLocaleString()} views
+            👤 ${escapedAuthor} | 👁️ ${(video.views || 0).toLocaleString()} views
           </p>
           <p style="margin: 4px 0; font-size: 12px; color: var(--text-secondary);">
-            ⏱️ ${video.duration.timestamp} | 📅 ${video.ago}
+            ⏱️ ${escapeHtml(video.duration?.timestamp || '0:00')} | 📅 ${escapeHtml(video.ago || '')}
           </p>
         </div>
       </div>
@@ -121,6 +135,15 @@ async function handleYouTubeSearch(keywords) {
 
   resultDiv.innerHTML = html;
   resultDiv.style.display = 'block';
+
+  // Add event listeners to search results using event delegation
+  document.querySelectorAll('.search-result-item').forEach(item => {
+    item.addEventListener('click', function () {
+      const url = this.getAttribute('data-video-url');
+      const title = this.getAttribute('data-video-title');
+      selectVideo(url, title);
+    });
+  });
 }
 
 // Select video from search results

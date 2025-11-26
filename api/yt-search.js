@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
         let filteredResults;
 
         if (type === 'video') {
-            filteredResults = results.videos.slice(0, limit).map(video => ({
+            filteredResults = (results.videos || []).slice(0, limit).map(video => ({
                 type: 'video',
                 videoId: video.videoId,
                 url: video.url,
@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
                 uploadDate: video.uploadDate
             }));
         } else if (type === 'playlist') {
-            filteredResults = results.playlists.slice(0, limit).map(playlist => ({
+            filteredResults = (results.playlists || []).slice(0, limit).map(playlist => ({
                 type: 'playlist',
                 playlistId: playlist.listId,
                 url: playlist.url,
@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
                 }
             }));
         } else if (type === 'channel') {
-            filteredResults = results.channels.slice(0, limit).map(channel => ({
+            filteredResults = (results.channels || []).slice(0, limit).map(channel => ({
                 type: 'channel',
                 channelId: channel.channelId,
                 url: channel.url,
@@ -78,9 +78,9 @@ module.exports = async (req, res) => {
         } else {
             // Return all types
             filteredResults = {
-                videos: results.videos.slice(0, limit),
-                playlists: results.playlists.slice(0, limit),
-                channels: results.channels.slice(0, limit)
+                videos: (results.videos || []).slice(0, limit),
+                playlists: (results.playlists || []).slice(0, limit),
+                channels: (results.channels || []).slice(0, limit)
             };
         }
 

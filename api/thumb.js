@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Thumbnail error:', error.message);
-        res.json({
+        res.status(500).json({
             success: false,
             error: 'Gagal mengambil info video'
         });

@@ -92,7 +92,7 @@ module.exports = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ TikTok download error:', error.message);
-        res.json({
+        res.status(500).json({
             success: false,
             error: 'Download gagal. Coba lagi'
         });
