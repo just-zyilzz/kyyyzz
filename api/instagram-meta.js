@@ -3,8 +3,67 @@
  * Get Instagram media metadata (thumbnail, caption)
  */
 
-const { instagramDownload } = require('../lib/scrapers');
-const Instagram = require('../lib/instagram');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+// Simple Instagram metadata extractor (no login required)
+async function getInstagramMetadata(url) {
+    try {
+        // Method 1: Try to get OEmbed data (public posts only)
+        const postId = url.match(/\/p\/([^/?]+)/)?.[1] || url.match(/\/reel\/([^/?]+)/)?.[1];
+
+        if (postId) {
+            try {
+                const oembedUrl = `https://graph.instagram.com/oembed?url=https://www.instagram.com/p/${postId}/`;
+                const { data } = await axios.get(oembedUrl);
+
+                return {
+                    success: true,
+                    title: data.title || 'Instagram Post',
+                    thumbnail: data.thumbnail_url,
+                    author: data.author_name,
+                    platform: 'Instagram'
+                };
+            } catch (oembedError) {
+                console.log('Oembed failed, trying scraping...');
+            }
+        }
+
+        // Method 2: Scrape Instagram page directly
+        const { data: html } = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+
+        const $ = cheerio.load(html);
+
+        // Extract from meta tags
+        const ogImage = $('meta[property="og:image"]').attr('content');
+        const ogTitle = $('meta[property="og:title"]').attr('content');
+        const ogDescription = $('meta[property="og:description"]').attr('content');
+
+        if (ogImage) {
+            return {
+                success: true,
+                title: ogTitle || ogDescription || 'Instagram Media',
+                thumbnail: ogImage,
+                platform: 'Instagram'
+            };
+        }
+
+        // Method 3: Basic fallback
+        return {
+            success: true,
+            title: 'Instagram Media',
+            thumbnail: null,
+            platform: 'Instagram'
+        };
+
+    } catch (error) {
+        throw new Error('Failed to get Instagram metadata: ' + error.message);
+    }
+}
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') {
@@ -29,41 +88,18 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Try to get metadata
-        let result;
-
-        try {
-            result = await Instagram(url);
-        } catch (e) {
-            console.log('Primary method failed, trying fallback...');
-            result = await instagramDownload(url);
-        }
-
-        // Extract thumbnail from result
-        let thumbnail = null;
-        let caption = 'Instagram Media';
-
-        if (result.metadata) {
-            thumbnail = result.metadata.thumbnail;
-            caption = result.metadata.caption || result.metadata.username || caption;
-        } else if (result.url && Array.isArray(result.url)) {
-            // Use first URL as thumbnail (usually it's the image/video)
-            thumbnail = result.url[0];
-        } else if (result.urls && Array.isArray(result.urls)) {
-            thumbnail = result.urls[0];
-        }
-
-        res.json({
-            success: true,
-            title: caption,
-            thumbnail: thumbnail,
-            platform: 'Instagram'
-        });
+        const metadata = await getInstagramMetadata(url);
+        res.json(metadata);
     } catch (error) {
         console.error('❌ Instagram metadata error:', error.message);
+
+        // Always return something, even if metadata fails
         res.json({
-            success: false,
-            error: 'Gagal mengambil metadata Instagram'
+            success: true,
+            title: 'Instagram Media',
+            thumbnail: null,
+            platform: 'Instagram',
+            note: 'Metadata limited - content might be private'
         });
     }
 };
