@@ -154,11 +154,18 @@ async function handleUrlDownload(url) {
       body: JSON.stringify({ url })
     });
     metadata = await res.json();
-  } else {
-    // For Instagram/Facebook, show basic info
+  } else if (platform === 'Instagram') {
+    const res = await fetch('/api/instagram-meta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    metadata = await res.json();
+  } else if (platform === 'Facebook') {
+    // Facebook - no metadata preview
     metadata = {
       success: true,
-      title: 'Media dari ' + platform,
+      title: 'Media dari Facebook',
       platform: platform,
       thumbnailUrl: null
     };
@@ -195,15 +202,30 @@ async function handleUrlDownload(url) {
   }
 }
 
-// Trigger auto-download
-function triggerDownload(url, filename) {
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename || 'download';
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+// Download file with proper CORS handling
+async function downloadFile(url, filename) {
+  try {
+    // Try direct download first (works for same-origin or CORS-enabled URLs)
+    const response = await fetch(url);
+    const blob = await response.blob();
+
+    // Create blob URL and trigger download
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+
+    return true;
+  } catch (e) {
+    // Fallback: open in new tab (for CORS-blocked URLs)
+    console.log('Direct download failed, opening in new tab:', e.message);
+    window.open(url, '_blank');
+    return false;
+  }
 }
 
 async function download(url, format, platform) {
@@ -244,10 +266,17 @@ async function download(url, format, platform) {
       const fileName = data.fileName || `download_${Date.now()}.${format === 'audio' ? 'mp3' : 'mp4'}`;
 
       if (downloadUrl) {
-        // Trigger auto-download
-        triggerDownload(downloadUrl, fileName);
+        popup.textContent = '⏳ Memulai download...';
 
-        popup.textContent = '✅ Download dimulai!';
+        // Try to download file
+        const downloaded = await downloadFile(downloadUrl, fileName);
+
+        if (downloaded) {
+          popup.textContent = '✅ Download selesai!';
+        } else {
+          popup.textContent = '✅ File dibuka di tab baru!';
+        }
+
         popup.className = 'popup show';
         popup.style.background = '#30D158';
         setTimeout(() => popup.classList.remove('show'), 3000);
