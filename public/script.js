@@ -47,7 +47,8 @@ function isUrl(text) {
       text.includes('tiktok.com') ||
       text.includes('instagram.com') ||
       text.includes('facebook.com') ||
-      text.includes('fb.watch');
+      text.includes('fb.watch') ||
+      text.includes('spotify.com');
   }
 }
 
@@ -58,6 +59,7 @@ function detectPlatform(url) {
   if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vt.tiktok.com') || lowerUrl.includes('vm.tiktok.com')) return 'TikTok';
   if (lowerUrl.includes('instagram.com')) return 'Instagram';
   if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) return 'Facebook';
+  if (lowerUrl.includes('spotify.com/track')) return 'Spotify';
   return 'Unknown';
 }
 
@@ -155,7 +157,7 @@ async function handleUrlDownload(url) {
   const platform = detectPlatform(url);
 
   if (platform === 'Unknown') {
-    throw new Error('Platform tidak didukung. Gunakan YouTube, TikTok, Instagram, atau Facebook.');
+    throw new Error('Platform tidak didukung. Gunakan YouTube, TikTok, Instagram, Facebook, atau Spotify.');
   }
 
   let metadata;
@@ -190,34 +192,96 @@ async function handleUrlDownload(url) {
       platform: platform,
       thumbnailUrl: null
     };
+  } else if (platform === 'Spotify') {
+    // Spotify - direct download via bridge
+    const res = await fetch('/api/spotify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      metadata = {
+        success: true,
+        title: data.title,
+        author: data.artist,
+        thumbnail: data.thumbnail,
+        platform: 'Spotify',
+        downloadUrl: data.downloadUrl,
+        fileName: data.fileName
+      };
+    } else {
+      throw new Error(data.error || 'Gagal mengambil data Spotify');
+    }
   }
 
   if (metadata.success) {
     const resultDiv = document.querySelector('.result');
-    resultDiv.innerHTML = `
-      ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
-      <div class="meta">
-        <p><strong>Platform:</strong> ${platform}</p>
-        ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
-        ${metadata.author ? `<p><strong>Author:</strong> ${metadata.author}</p>` : ''}
-        ${metadata.duration ? `<p><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
-        ${metadata.stats ? `<p><strong>Views:</strong> ${metadata.stats.views} | <strong>Likes:</strong> ${metadata.stats.likes}</p>` : ''}
-      </div>
-      <div class="download-btns">
-        <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
-        ${platform === 'YouTube' || platform === 'TikTok' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
-      </div>
-    `;
+
+    // Special display for Spotify
+    if (platform === 'Spotify') {
+      resultDiv.innerHTML = `
+        <img src="${metadata.thumbnail}" alt="Thumbnail" style="max-height:300px; width:300px; border-radius:12px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <div class="meta">
+          <p><strong>Platform:</strong> <span style="color:#1DB954">Spotify</span></p>
+          <p><strong>Judul:</strong> ${metadata.title}</p>
+          <p><strong>Artist:</strong> ${metadata.author}</p>
+        </div>
+        <div class="download-btns">
+          <button class="dl-audio" data-url="${metadata.downloadUrl}" data-filename="${metadata.fileName}" style="background:#1DB954; color:white;">🎵 Download MP3</button>
+        </div>
+      `;
+    } else {
+      // Standard display for other platforms
+      resultDiv.innerHTML = `
+          ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+          <div class="meta">
+            <p><strong>Platform:</strong> ${platform}</p>
+            ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+            ${metadata.author ? `<p><strong>Author:</strong> ${metadata.author}</p>` : ''}
+            ${metadata.duration ? `<p><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
+            ${metadata.stats ? `<p><strong>Views:</strong> ${metadata.stats.views} | <strong>Likes:</strong> ${metadata.stats.likes}</p>` : ''}
+          </div>
+          <div class="download-btns">
+            <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
+            ${platform === 'YouTube' || platform === 'TikTok' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
+          </div>
+        `;
+    }
+
     resultDiv.style.display = 'block';
 
     // Attach download handlers
-    document.querySelectorAll('.dl-video, .dl-audio').forEach(btn => {
-      btn.onclick = (e) => {
-        const format = e.target.classList.contains('dl-audio') ? 'audio' : 'video';
-        const platform = e.target.dataset.platform;
-        download(e.target.dataset.url, format, platform);
-      };
-    });
+    if (platform === 'Spotify') {
+      // Direct download handler for Spotify since we already have the link
+      const btn = resultDiv.querySelector('.dl-audio');
+      if (btn) {
+        btn.onclick = async (e) => {
+          const url = e.target.dataset.url;
+          const filename = e.target.dataset.filename;
+
+          const popup = document.getElementById('popup');
+          popup.textContent = '⏳ Memulai download...';
+          popup.className = 'popup show';
+          popup.style.background = '#30D158';
+
+          await downloadFile(url, filename);
+
+          popup.textContent = '✅ Download selesai!';
+          setTimeout(() => popup.classList.remove('show'), 3000);
+        };
+      }
+    } else {
+      // Standard handlers
+      document.querySelectorAll('.dl-video, .dl-audio').forEach(btn => {
+        btn.onclick = (e) => {
+          const format = e.target.classList.contains('dl-audio') ? 'audio' : 'video';
+          const platform = e.target.dataset.platform;
+          download(e.target.dataset.url, format, platform);
+        };
+      });
+    }
   } else {
     throw new Error(metadata.error || 'Gagal mengambil metadata');
   }
