@@ -135,8 +135,48 @@ async function handleYouTubeSearch(keywords) {
   });
 }
 
+// Fetch with timeout to prevent hanging
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - API too slow');
+    }
+    throw error;
+  }
+}
+
+// Fetch with automatic retry and exponential backoff
+async function fetchWithRetry(url, options = {}, retries = 2, timeout = 10000) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await fetchWithTimeout(url, options, timeout);
+      return response;
+    } catch (error) {
+      // If last retry, throw error
+      if (i === retries) throw error;
+
+      // Exponential backoff: 500ms, 1s, 2s, max 3s
+      const delay = Math.min(500 * Math.pow(2, i), 3000);
+      console.log(`Retry ${i + 1}/${retries} after ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 // Select video from search results
 async function selectVideo(url, title) {
+
   document.getElementById('urlInput').value = url;
 
   // Show loading
@@ -164,26 +204,41 @@ async function handleUrlDownload(url) {
 
   // Get metadata based on platform
   if (platform === 'YouTube') {
-    const res = await fetch('/api/thumb', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    metadata = await res.json();
+    try {
+      const res = await fetchWithRetry('/api/thumb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }, 2, 8000);
+      metadata = await res.json();
+    } catch (error) {
+      console.error('YouTube metadata error:', error.message);
+      metadata = { success: true, title: 'YouTube Video', platform: 'YouTube', thumbnail: null };
+    }
   } else if (platform === 'TikTok') {
-    const res = await fetch('/api/tiktok-meta', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    metadata = await res.json();
+    try {
+      const res = await fetchWithRetry('/api/tiktok-meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }, 2, 8000);
+      metadata = await res.json();
+    } catch (error) {
+      console.error('TikTok metadata error:', error.message);
+      metadata = { success: true, title: 'TikTok Video', platform: 'TikTok', thumbnail: null };
+    }
   } else if (platform === 'Instagram') {
-    const res = await fetch('/api/instagram-meta', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    metadata = await res.json();
+    try {
+      const res = await fetchWithRetry('/api/instagram-meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }, 2, 8000);
+      metadata = await res.json();
+    } catch (error) {
+      console.error('Instagram metadata error:', error.message);
+      metadata = { success: true, title: 'Instagram Media', platform: 'Instagram', thumbnail: null };
+    }
   } else if (platform === 'Facebook') {
     // Facebook - no metadata preview
     metadata = {
@@ -194,26 +249,31 @@ async function handleUrlDownload(url) {
     };
   } else if (platform === 'Spotify') {
     // Spotify - resolve to YouTube URL via bridge
-    const res = await fetch('/api/spotify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    const data = await res.json();
+    try {
+      const res = await fetchWithRetry('/api/spotify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }, 2, 10000);
+      const data = await res.json();
 
-    if (data.success) {
-      metadata = {
-        success: true,
-        title: data.title,
-        author: data.artist,
-        thumbnail: data.thumbnail,
-        platform: 'Spotify',
-        // IMPORTANT: We use the resolved YouTube URL for the actual download
-        downloadUrl: data.youtubeUrl,
-        fileName: `${data.artist} - ${data.title}.mp3`
-      };
-    } else {
-      throw new Error(data.error || 'Gagal mengambil data Spotify');
+      if (data.success) {
+        metadata = {
+          success: true,
+          title: data.title,
+          author: data.artist,
+          thumbnail: data.thumbnail,
+          platform: 'Spotify',
+          // IMPORTANT: We use the resolved YouTube URL for the actual download
+          downloadUrl: data.youtubeUrl,
+          fileName: `${data.artist} - ${data.title}.mp3`
+        };
+      } else {
+        throw new Error(data.error || 'Gagal mengambil data Spotify');
+      }
+    } catch (error) {
+      console.error('Spotify metadata error:', error.message);
+      throw new Error('Gagal mengambil data Spotify: ' + error.message);
     }
   }
 
