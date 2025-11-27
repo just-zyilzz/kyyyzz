@@ -284,7 +284,16 @@ async function download(url, format, platform) {
     if (data.success) {
       // Get download URL from different response formats
       const downloadUrl = data.downloadUrl || data.download || (data.urls && data.urls[0]);
-      const fileName = data.fileName || `download_${Date.now()}.${format === 'audio' ? 'mp3' : 'mp4'}`;
+
+      // FIX: Ensure fileName always has proper extension
+      let fileName = data.fileName;
+      const ext = format === 'audio' ? '.mp3' : '.mp4';
+
+      if (!fileName) {
+        fileName = `download_${Date.now()}${ext}`;
+      } else if (!fileName.toLowerCase().endsWith(ext)) {
+        fileName += ext;
+      }
 
       if (downloadUrl) {
         popup.textContent = '⏳ Memulai download...';
