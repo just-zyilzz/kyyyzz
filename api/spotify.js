@@ -1,11 +1,10 @@
 /**
  * API Endpoint: /api/spotify
- * Download Spotify audio via YouTube bridge
+ * Resolve Spotify link to YouTube URL for frontend processing
  */
 
 const { getSpotifyMetadata } = require('../lib/spotify');
 const ytSearch = require('yt-search');
-const savetube = require('../lib/savetube');
 
 module.exports = async (req, res) => {
     // Only allow POST
@@ -41,24 +40,16 @@ module.exports = async (req, res) => {
         const video = searchResults.videos[0];
         const videoUrl = video.url;
 
-        // 3. Download using Savetube (MP3)
-        const downloadResult = await savetube.download(videoUrl, 'mp3');
+        // 3. Return YouTube URL and Spotify Metadata
+        // We do NOT download here. We let the frontend handle the download using the YouTube URL.
+        // This is more robust and reuses the working YouTube downloader.
 
-        if (!downloadResult.status) {
-            return res.status(500).json({
-                success: false,
-                error: 'Gagal memproses audio'
-            });
-        }
-
-        // 4. Return result with Spotify metadata but YouTube download link
         res.json({
             success: true,
             title: metadata.title,
             artist: metadata.artist,
             thumbnail: metadata.thumbnail,
-            downloadUrl: downloadResult.result.download,
-            fileName: `${metadata.artist} - ${metadata.title}.mp3`,
+            youtubeUrl: videoUrl, // The resolved YouTube URL
             duration: video.duration.seconds,
             platform: 'Spotify',
             source: 'YouTube Bridge'

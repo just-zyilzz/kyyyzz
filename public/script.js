@@ -193,7 +193,7 @@ async function handleUrlDownload(url) {
       thumbnailUrl: null
     };
   } else if (platform === 'Spotify') {
-    // Spotify - direct download via bridge
+    // Spotify - resolve to YouTube URL via bridge
     const res = await fetch('/api/spotify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -208,8 +208,9 @@ async function handleUrlDownload(url) {
         author: data.artist,
         thumbnail: data.thumbnail,
         platform: 'Spotify',
-        downloadUrl: data.downloadUrl,
-        fileName: data.fileName
+        // IMPORTANT: We use the resolved YouTube URL for the actual download
+        downloadUrl: data.youtubeUrl,
+        fileName: `${data.artist} - ${data.title}.mp3`
       };
     } else {
       throw new Error(data.error || 'Gagal mengambil data Spotify');
@@ -229,7 +230,8 @@ async function handleUrlDownload(url) {
           <p><strong>Artist:</strong> ${metadata.author}</p>
         </div>
         <div class="download-btns">
-          <button class="dl-audio" data-url="${metadata.downloadUrl}" data-filename="${metadata.fileName}" style="background:#1DB954; color:white;">🎵 Download MP3</button>
+          <!-- We pass the YouTube URL to the download function, but keep the Spotify filename -->
+          <button class="dl-audio-spotify" data-url="${metadata.downloadUrl}" data-filename="${metadata.fileName}" style="background:#1DB954; color:white;">🎵 Download MP3</button>
         </div>
       `;
     } else {
@@ -254,22 +256,13 @@ async function handleUrlDownload(url) {
 
     // Attach download handlers
     if (platform === 'Spotify') {
-      // Direct download handler for Spotify since we already have the link
-      const btn = resultDiv.querySelector('.dl-audio');
+      // Handler for Spotify button
+      const btn = resultDiv.querySelector('.dl-audio-spotify');
       if (btn) {
-        btn.onclick = async (e) => {
-          const url = e.target.dataset.url;
-          const filename = e.target.dataset.filename;
-
-          const popup = document.getElementById('popup');
-          popup.textContent = '⏳ Memulai download...';
-          popup.className = 'popup show';
-          popup.style.background = '#30D158';
-
-          await downloadFile(url, filename);
-
-          popup.textContent = '✅ Download selesai!';
-          setTimeout(() => popup.classList.remove('show'), 3000);
+        btn.onclick = (e) => {
+          const youtubeUrl = e.target.dataset.url;
+          // Use standard download function but treat it as YouTube audio
+          download(youtubeUrl, 'audio', 'YouTube');
         };
       }
     } else {
