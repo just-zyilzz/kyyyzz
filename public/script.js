@@ -331,54 +331,39 @@ async function download(url, format, platform) {
     }
 
     const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      // Get download URL from different response formats
-      const downloadUrl = data.downloadUrl || data.download || (data.urls && data.urls[0]);
-
-      // FIX: Ensure fileName always has proper extension
-      let fileName = data.fileName;
-      const ext = format === 'audio' ? '.mp3' : '.mp4';
-
-      if (!fileName) {
+      if(!fileName) {
         fileName = `download_${Date.now()}${ext}`;
-      } else if (!fileName.toLowerCase().endsWith(ext)) {
+      } else if(!fileName.toLowerCase().endsWith(ext)) {
         fileName += ext;
-      }
+  }
 
       if (downloadUrl) {
-        popup.textContent = '⏳ Memulai download...';
+    popup.textContent = '⏳ Memulai download...';
 
-        // Try to download file
-        const downloaded = await downloadFile(downloadUrl, fileName);
+    // Try to download file
+    const downloaded = await downloadFile(downloadUrl, fileName);
 
-        if (downloaded) {
-          popup.textContent = '✅ Download selesai!';
-        } else {
-          popup.textContent = '✅ File dibuka di tab baru!';
-        }
-
-        popup.className = 'popup show';
-        popup.style.background = '#30D158';
-        setTimeout(() => popup.classList.remove('show'), 3000);
-      } else {
-        throw new Error('Download URL tidak ditemukan');
-      }
+    if (downloaded) {
+      popup.textContent = '✅ Download selesai!';
     } else {
-      throw new Error(data.error || 'Gagal download');
+      popup.textContent = '✅ File dibuka di tab baru!';
     }
-  } catch (e) {
-    popup.textContent = '❌ Error: ' + e.message;
+
     popup.className = 'popup show';
-    popup.style.background = '#FF453A';
-    setTimeout(() => {
-      popup.classList.remove('show');
-    }, 4000);
+    popup.style.background = '#30D158';
+    setTimeout(() => popup.classList.remove('show'), 3000);
+  } else {
+    throw new Error('Download URL tidak ditemukan');
   }
+} else {
+  throw new Error(data.error || 'Gagal download');
+}
+  } catch (e) {
+  popup.textContent = '❌ Error: ' + e.message;
+  popup.className = 'popup show';
+  popup.style.background = '#FF453A';
+  setTimeout(() => {
+    popup.classList.remove('show');
+  }, 4000);
+}
 }
