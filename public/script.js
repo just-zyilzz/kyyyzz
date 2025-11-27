@@ -331,39 +331,54 @@ async function download(url, format, platform) {
     }
 
     const res = await fetch(endpoint, {
-      if(!fileName) {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      const downloadUrl = data.downloadUrl;
+      let fileName = data.fileName;
+
+      // Determine file extension
+      const ext = format === 'audio' ? '.mp3' : '.mp4';
+
+      // Ensure fileName has proper extension
+      if (!fileName) {
         fileName = `download_${Date.now()}${ext}`;
-      } else if(!fileName.toLowerCase().endsWith(ext)) {
+      } else if (!fileName.toLowerCase().endsWith(ext)) {
         fileName += ext;
-  }
+      }
 
       if (downloadUrl) {
-    popup.textContent = '⏳ Memulai download...';
+        popup.textContent = '⏳ Memulai download...';
 
-    // Try to download file
-    const downloaded = await downloadFile(downloadUrl, fileName);
+        // Try to download file
+        const downloaded = await downloadFile(downloadUrl, fileName);
 
-    if (downloaded) {
-      popup.textContent = '✅ Download selesai!';
+        if (downloaded) {
+          popup.textContent = '✅ Download selesai!';
+        } else {
+          popup.textContent = '✅ File dibuka di tab baru!';
+        }
+
+        popup.className = 'popup show';
+        popup.style.background = '#30D158';
+        setTimeout(() => popup.classList.remove('show'), 3000);
+      } else {
+        throw new Error('Download URL tidak ditemukan');
+      }
     } else {
-      popup.textContent = '✅ File dibuka di tab baru!';
+      throw new Error(data.error || 'Gagal download');
     }
-
-    popup.className = 'popup show';
-    popup.style.background = '#30D158';
-    setTimeout(() => popup.classList.remove('show'), 3000);
-  } else {
-    throw new Error('Download URL tidak ditemukan');
-  }
-} else {
-  throw new Error(data.error || 'Gagal download');
-}
   } catch (e) {
-  popup.textContent = '❌ Error: ' + e.message;
-  popup.className = 'popup show';
-  popup.style.background = '#FF453A';
-  setTimeout(() => {
-    popup.classList.remove('show');
-  }, 4000);
-}
+    popup.textContent = '❌ Error: ' + e.message;
+    popup.className = 'popup show';
+    popup.style.background = '#FF453A';
+    setTimeout(() => {
+      popup.classList.remove('show');
+    }, 4000);
+  }
 }
