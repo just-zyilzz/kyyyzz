@@ -4,8 +4,6 @@
  */
 
 const { tiktokDownloaderVideo } = require('../lib/tiktok');
-const { getUserFromRequest } = require('../lib/session');
-const { saveDownload } = require('../lib/db');
 
 module.exports = async (req, res) => {
     // Only allow POST
@@ -43,46 +41,42 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Get user from JWT (if logged in)
-        const user = getUserFromRequest(req);
-
         // Determine download URL based on format
         let downloadUrl;
         let fileName;
 
         if (format === 'audio') {
-            // Return music/audio URL
+            // FIX: Add null check for music_info
+            if (!result.music_info || !result.music_info.url) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'Audio tidak tersedia untuk video ini'
+                });
+            }
             downloadUrl = result.music_info.url;
-            fileName = `${result.id}_audio.mp3`;
+            fileName = `${result.id || Date.now()}_audio.mp3`;
         } else {
+            // FIX: Add null check for data array
+            if (!result.data || !Array.isArray(result.data) || result.data.length === 0) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'Video tidak tersedia'
+                });
+            }
+
             // Return video URL (HD no watermark by default)
             const videoData = result.data.find(d => d.type === 'nowatermark_hd') ||
                 result.data.find(d => d.type === 'nowatermark') ||
                 result.data[0];
             downloadUrl = videoData.url;
-            fileName = `${result.id}.mp4`;
-        }
-
-        // Save to database history
-        if (user && user.id) {
-            try {
-                await saveDownload(
-                    user.id,
-                    url,
-                    title || result.title || '—',
-                    'TikTok',
-                    fileName
-                );
-            } catch (dbError) {
-                console.error('Failed to save history:', dbError);
-            }
+            fileName = `${result.id || Date.now()}.mp4`;
         }
 
         // Return response
         res.json({
             success: true,
             title: result.title,
-            author: result.author.nickname,
+            author: result.author?.nickname || 'Unknown',
             thumbnail: result.cover,
             downloadUrl: downloadUrl,
             fileName: fileName,

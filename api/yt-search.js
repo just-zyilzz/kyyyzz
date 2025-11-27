@@ -93,7 +93,8 @@ module.exports = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ YouTube search error:', error.message);
-        res.json({
+        // FIX: Use proper HTTP status code for errors
+        res.status(500).json({
             success: false,
             error: 'Search failed: ' + error.message
         });

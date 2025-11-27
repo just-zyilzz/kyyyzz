@@ -4,8 +4,6 @@
  */
 
 const savetube = require('../lib/savetube');
-const { getUserFromRequest } = require('../lib/session');
-const { saveDownload } = require('../lib/db');
 
 module.exports = async (req, res) => {
     // Only allow POST
@@ -41,24 +39,6 @@ module.exports = async (req, res) => {
                 success: false,
                 error: result.error
             });
-        }
-
-        // Get user from JWT (if logged in)
-        const user = getUserFromRequest(req);
-
-        // Save to database history
-        if (user && user.id) {
-            try {
-                await saveDownload(
-                    user.id,
-                    url,
-                    title || result.result.title || '—',
-                    'YouTube',
-                    result.result.id + '.mp4'
-                );
-            } catch (dbError) {
-                console.error('Failed to save history:', dbError);
-            }
         }
 
         // Return response in expected format

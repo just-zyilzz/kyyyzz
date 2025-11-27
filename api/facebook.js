@@ -4,8 +4,6 @@
  */
 
 const Instagram = require('../lib/instagram');
-const { getUserFromRequest } = require('../lib/session');
-const { saveDownload } = require('../lib/db');
 
 module.exports = async (req, res) => {
     // Only allow POST
@@ -46,28 +44,18 @@ module.exports = async (req, res) => {
             });
         }
 
-        // Get user from JWT (if logged in)
-        const user = getUserFromRequest(req);
+        // FIX: Validate that result has url property
+        if (!result.url) {
+            return res.status(500).json({
+                success: false,
+                error: 'Download URL tidak ditemukan. Pastikan konten bersifat publik.'
+            });
+        }
 
         // Get first download URL
         const downloadUrl = Array.isArray(result.url) ? result.url[0] : result.url;
         const platform = isFacebook ? 'Facebook' : 'Instagram';
         const fileName = `${platform.toLowerCase()}_${Date.now()}.mp4`;
-
-        // Save to database history
-        if (user && user.id) {
-            try {
-                await saveDownload(
-                    user.id,
-                    url,
-                    title || result.metadata?.caption || result.metadata?.username || '—',
-                    platform,
-                    fileName
-                );
-            } catch (dbError) {
-                console.error('Failed to save history:', dbError);
-            }
-        }
 
         // Return response
         res.json({
@@ -79,7 +67,7 @@ module.exports = async (req, res) => {
         });
     } catch (error) {
         console.error(`❌ ${isFacebook ? 'Facebook' : 'Instagram'} download error:`, error.message);
-        res.json({
+        res.status(500).json({
             success: false,
             error: 'Download gagal. Pastikan konten bersifat publik dan coba lagi'
         });
