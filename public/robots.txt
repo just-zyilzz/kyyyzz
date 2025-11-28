@@ -1,0 +1,31 @@
+# robots.txt for Tools Premium - Media Downloader
+# https://kfocean.xyz/robots.txt
+
+# Allow all search engines to crawl the site
+User-agent: *
+Allow: /
+
+# Disallow crawling of API endpoints and internal directories
+Disallow: /api/
+Disallow: /node_modules/
+Disallow: /.git/
+Disallow: /.vercel/
+
+# Sitemap location
+Sitemap: https://kfocean.xyz/sitemap.xml
+
+# Crawl-delay (optional, helps prevent server overload)
+Crawl-delay: 1
+
+# Popular search engine specific rules
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
