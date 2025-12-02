@@ -1,11 +1,54 @@
 /**
  * API Endpoint: /api/threads
  * Download Threads photos and videos
+ * Also handles metadata-only requests via ?metadata=true
  */
 
 const { threadsDownload } = require('../lib/threads');
 const { getUserFromRequest } = require('../lib/session');
 const { saveDownload } = require('../lib/db');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+// Metadata extraction function
+async function getThreadsMetadata(url) {
+    try {
+        const { data: html } = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+
+        const $ = cheerio.load(html);
+        const ogImage = $('meta[property="og:image"]').attr('content');
+        const ogTitle = $('meta[property="og:title"]').attr('content');
+        const ogDescription = $('meta[property="og:description"]').attr('content');
+
+        if (ogImage || ogTitle) {
+            return {
+                success: true,
+                title: ogTitle || ogDescription || 'Threads Post',
+                thumbnail: ogImage,
+                platform: 'Threads'
+            };
+        }
+
+        return {
+            success: true,
+            title: 'Threads Post',
+            thumbnail: null,
+            platform: 'Threads'
+        };
+    } catch (error) {
+        return {
+            success: true,
+            title: 'Threads Post',
+            thumbnail: null,
+            platform: 'Threads',
+            note: 'Metadata limited - content might be private'
+        };
+    }
+}
 
 module.exports = async (req, res) => {
     // Only allow POST
@@ -30,6 +73,14 @@ module.exports = async (req, res) => {
             success: false,
             error: 'Endpoint ini hanya untuk Threads'
         });
+    }
+
+    // Check if this is a metadata-only request
+    const metadataOnly = req.query.metadata === 'true';
+
+    if (metadataOnly) {
+        const metadata = await getThreadsMetadata(url);
+        return res.json(metadata);
     }
 
     try {

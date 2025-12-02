@@ -220,7 +220,7 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'TikTok') {
     try {
-      const res = await fetchWithRetry('/api/tiktok-meta', {
+      const res = await fetchWithRetry('/api/tiktok?metadata=true', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
@@ -232,7 +232,7 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'Instagram') {
     try {
-      const res = await fetchWithRetry('/api/instagram-meta', {
+      const res = await fetchWithRetry('/api/instagram?metadata=true', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
@@ -244,7 +244,7 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'Threads') {
     try {
-      const res = await fetchWithRetry('/api/threads-meta', {
+      const res = await fetchWithRetry('/api/threads?metadata=true', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })

@@ -1,15 +1,93 @@
 /**
  * Updated Instagram downloader using lib/instagram.js and lib/scrapers.js
+ * Also handles metadata-only requests via ?metadata=true
  */
 
 const Instagram = require('../lib/instagram');
 const { instagramDownload } = require('../lib/scrapers');
 const { getUserFromRequest } = require('../lib/session');
 const { saveDownload } = require('../lib/db');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+// Metadata extraction function
+async function getInstagramMetadata(url) {
+    try {
+        const postId = url.match(/\/p\/([^/?]+)/)?.[1] || url.match(/\/reel\/([^/?]+)/)?.[1];
+
+        if (postId) {
+            try {
+                const oembedUrl = `https://graph.instagram.com/oembed?url=https://www.instagram.com/p/${postId}/`;
+                const { data } = await axios.get(oembedUrl);
+
+                return {
+                    success: true,
+                    title: data.title || 'Instagram Post',
+                    thumbnail: data.thumbnail_url,
+                    author: data.author_name,
+                    platform: 'Instagram'
+                };
+            } catch (oembedError) {
+                console.log('Oembed failed, trying scraping...');
+            }
+        }
+
+        const { data: html } = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+
+        const $ = cheerio.load(html);
+        const ogImage = $('meta[property="og:image"]').attr('content');
+        const ogTitle = $('meta[property="og:title"]').attr('content');
+        const ogDescription = $('meta[property="og:description"]').attr('content');
+
+        if (ogImage) {
+            return {
+                success: true,
+                title: ogTitle || ogDescription || 'Instagram Media',
+                thumbnail: ogImage,
+                platform: 'Instagram'
+            };
+        }
+
+        return {
+            success: true,
+            title: 'Instagram Media',
+            thumbnail: null,
+            platform: 'Instagram'
+        };
+    } catch (error) {
+        return {
+            success: true,
+            title: 'Instagram Media',
+            thumbnail: null,
+            platform: 'Instagram',
+            note: 'Metadata limited - content might be private'
+        };
+    }
+}
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
+
+    // Check if this is a metadata-only request
+    const metadataOnly = req.query.metadata === 'true';
+
+    if (metadataOnly) {
+        const { url } = req.body;
+        if (!url) {
+            return res.status(400).json({ success: false, error: 'URL tidak boleh kosong' });
+        }
+        const lowerUrl = url.toLowerCase();
+        if (!lowerUrl.includes('instagram.com')) {
+            return res.status(400).json({ success: false, error: 'Endpoint ini hanya untuk Instagram' });
+        }
+        const metadata = await getInstagramMetadata(url);
+        return res.json(metadata);
     }
 
     const { url, title } = req.body;

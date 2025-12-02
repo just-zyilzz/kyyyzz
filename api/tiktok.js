@@ -1,6 +1,7 @@
 /**
  * API Endpoint: /api/tiktok
  * Download TikTok video menggunakan TikWM API
+ * Also handles metadata-only requests via ?metadata=true
  */
 
 const { tiktokDownloaderVideo } = require('../lib/tiktok');
@@ -28,6 +29,40 @@ module.exports = async (req, res) => {
             success: false,
             error: 'Endpoint ini hanya untuk TikTok'
         });
+    }
+
+    // Check if this is a metadata-only request
+    const metadataOnly = req.query.metadata === 'true';
+
+    if (metadataOnly) {
+        try {
+            const result = await tiktokDownloaderVideo(url);
+            if (result.status) {
+                return res.json({
+                    success: true,
+                    title: result.title,
+                    author: result.author?.nickname || 'Unknown',
+                    thumbnail: result.cover,
+                    duration: result.duration,
+                    stats: result.stats,
+                    platform: 'TikTok'
+                });
+            } else {
+                return res.json({
+                    success: true,
+                    title: 'TikTok Video',
+                    thumbnail: null,
+                    platform: 'TikTok'
+                });
+            }
+        } catch (error) {
+            return res.json({
+                success: true,
+                title: 'TikTok Video',
+                thumbnail: null,
+                platform: 'TikTok'
+            });
+        }
     }
 
     try {
