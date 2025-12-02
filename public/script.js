@@ -46,6 +46,8 @@ function isUrl(text) {
       text.includes('youtu.be') ||
       text.includes('tiktok.com') ||
       text.includes('instagram.com') ||
+      text.includes('threads.net') ||
+      text.includes('threads.com') ||
       text.includes('facebook.com') ||
       text.includes('fb.watch') ||
       text.includes('spotify.com');
@@ -58,6 +60,7 @@ function detectPlatform(url) {
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'YouTube';
   if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vt.tiktok.com') || lowerUrl.includes('vm.tiktok.com')) return 'TikTok';
   if (lowerUrl.includes('instagram.com')) return 'Instagram';
+  if (lowerUrl.includes('threads.net') || lowerUrl.includes('threads.com')) return 'Threads';
   if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) return 'Facebook';
   if (lowerUrl.includes('spotify.com/track')) return 'Spotify';
   return 'Unknown';
@@ -197,7 +200,7 @@ async function handleUrlDownload(url) {
   const platform = detectPlatform(url);
 
   if (platform === 'Unknown') {
-    throw new Error('Platform tidak didukung. Gunakan YouTube, TikTok, Instagram, Facebook, atau Spotify.');
+    throw new Error('Platform tidak didukung. Gunakan YouTube, TikTok, Instagram, Threads, Facebook, atau Spotify.');
   }
 
   let metadata;
@@ -238,6 +241,18 @@ async function handleUrlDownload(url) {
     } catch (error) {
       console.error('Instagram metadata error:', error.message);
       metadata = { success: true, title: 'Instagram Media', platform: 'Instagram', thumbnail: null };
+    }
+  } else if (platform === 'Threads') {
+    try {
+      const res = await fetchWithRetry('/api/threads-meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }, 2, 8000);
+      metadata = await res.json();
+    } catch (error) {
+      console.error('Threads metadata error:', error.message);
+      metadata = { success: true, title: 'Threads Post', platform: 'Threads', thumbnail: null };
     }
   } else if (platform === 'Facebook') {
     // Facebook - no metadata preview
@@ -386,6 +401,8 @@ async function download(url, format, platform) {
       body.format = format;
     } else if (platform === 'Instagram' || platform === 'Facebook') {
       endpoint = '/api/facebook';
+    } else if (platform === 'Threads') {
+      endpoint = '/api/threads';
     } else {
       throw new Error('Platform tidak didukung');
     }
