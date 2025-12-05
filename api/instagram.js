@@ -28,7 +28,7 @@ async function getInstagramMetadata(url) {
                     platform: 'Instagram'
                 };
             } catch (oembedError) {
-                console.log('Oembed failed, trying scraping...');
+                // Oembed failed, trying scraping...
             }
         }
 
@@ -114,8 +114,7 @@ module.exports = async (req, res) => {
         try {
             result = await Instagram(url);
         } catch (e1) {
-            console.log('Primary method failed, trying fallback...');
-            // Fallback to downloadgram
+            // Primary method failed, trying fallback...
             result = await instagramDownload(url);
         }
 

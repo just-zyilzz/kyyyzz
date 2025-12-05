@@ -25,7 +25,6 @@ module.exports = async (req, res) => {
         // 2. Search on YouTube
         // Query: "Artist - Title audio"
         const query = `${metadata.artist} - ${metadata.title} audio`;
-        console.log('Searching YouTube for:', query);
 
         const searchResults = await ytSearch(query);
 

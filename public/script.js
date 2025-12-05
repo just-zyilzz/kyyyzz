@@ -28,10 +28,17 @@ function initTheme() {
     });
 
     if (!localStorage.getItem('theme') && window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = (e) => {
         document.body.classList.toggle('dark', e.matches);
         applyButton();
-      });
+      };
+      // Use addEventListener for better compatibility
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleChange);
+      } else if (mediaQuery.addListener) {
+        mediaQuery.addListener(handleChange);
+      }
     }
   }
 }
@@ -66,10 +73,23 @@ function detectPlatform(url) {
   return 'Unknown';
 }
 
+// Debounce to prevent multiple simultaneous requests
+let isProcessing = false;
+
 document.getElementById('fetchBtn').addEventListener('click', async () => {
   const input = document.getElementById('urlInput').value.trim();
-  if (!input) return alert('Masukkan URL atau keywords terlebih dahulu.');
+  if (!input) {
+    showPopup('❌ Masukkan URL atau keywords terlebih dahulu.', '#FF453A');
+    return;
+  }
 
+  // Prevent multiple simultaneous requests
+  if (isProcessing) {
+    showPopup('⏳ Tunggu proses sebelumnya selesai...', 'rgba(28, 28, 30, 0.95)');
+    return;
+  }
+
+  isProcessing = true;
   document.querySelector('.loading').style.display = 'block';
   document.querySelector('.result').style.display = 'none';
 
@@ -83,33 +103,40 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
       await handleYouTubeSearch(input);
     }
   } catch (e) {
-    alert('Error: ' + e.message);
+    console.error('Fetch error:', e);
+    showPopup('❌ Error: ' + e.message, '#FF453A');
   } finally {
     document.querySelector('.loading').style.display = 'none';
+    isProcessing = false;
   }
 });
 
 // Handle YouTube search
 async function handleYouTubeSearch(keywords) {
-  const res = await fetch('/api/yt-search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: keywords, limit: 10, type: 'video' })
-  });
+  try {
+    const res = await fetch('/api/yt-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: keywords, limit: 10, type: 'video' })
+    });
 
-  const data = await res.json();
+    if (!res.ok) {
+      throw new Error('Gagal mencari video: ' + res.statusText);
+    }
 
-  // Defensive check for undefined results
-  if (!data.success || !data.results || !Array.isArray(data.results) || data.results.length === 0) {
-    throw new Error('Tidak ada hasil ditemukan');
-  }
+    const data = await res.json();
 
-  // Display search results
-  const resultDiv = document.querySelector('.result');
-  let html = `<h3 style="margin-bottom: 20px;">🔍 Hasil Pencarian: "${keywords}"</h3>`;
+    // Defensive check for undefined results
+    if (!data.success || !data.results || !Array.isArray(data.results) || data.results.length === 0) {
+      throw new Error('Tidak ada hasil ditemukan');
+    }
 
-  data.results.forEach((video, index) => {
-    html += `
+    // Display search results
+    const resultDiv = document.querySelector('.result');
+    let html = `<h3 style="margin-bottom: 20px;">🔍 Hasil Pencarian: "${keywords}"</h3>`;
+
+    data.results.forEach((video, index) => {
+      html += `
       <div class="search-result-item" data-video-url="${video.url || ''}" data-video-title="${video.title || ''}" style="display: flex; gap: 15px; padding: 15px; background: var(--input-bg); border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s;">
         <img src="${video.thumbnail || ''}" alt="${video.title || ''}" style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px;">
         <div style="flex: 1;">
@@ -123,19 +150,23 @@ async function handleYouTubeSearch(keywords) {
         </div>
       </div>
     `;
-  });
-
-  resultDiv.innerHTML = html;
-  resultDiv.style.display = 'block';
-
-  // Add event listeners to search results
-  document.querySelectorAll('.search-result-item').forEach(item => {
-    item.addEventListener('click', function () {
-      const url = this.getAttribute('data-video-url');
-      const title = this.getAttribute('data-video-title');
-      selectVideo(url, title);
     });
-  });
+
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = 'block';
+
+    // Add event listeners to search results
+    document.querySelectorAll('.search-result-item').forEach(item => {
+      item.addEventListener('click', function () {
+        const url = this.getAttribute('data-video-url');
+        const title = this.getAttribute('data-video-title');
+        selectVideo(url, title);
+      });
+    });
+  } catch (error) {
+    console.error('YouTube search error:', error);
+    throw error;
+  }
 }
 
 // Fetch with timeout to prevent hanging
@@ -381,6 +412,18 @@ async function downloadFile(url, filename) {
   }
 }
 
+// Helper function to show popup notifications
+function showPopup(message, bgColor = 'rgba(28, 28, 30, 0.95)', duration = 3000) {
+  const popup = document.getElementById('popup');
+  popup.textContent = message;
+  popup.className = 'popup show';
+  popup.style.background = bgColor;
+
+  setTimeout(() => {
+    popup.classList.remove('show');
+  }, duration);
+}
+
 async function download(url, format, platform) {
   const popup = document.getElementById('popup');
 
@@ -412,6 +455,10 @@ async function download(url, format, platform) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
+
+    if (!res.ok) {
+      throw new Error('Network response was not ok: ' + res.statusText);
+    }
 
     const data = await res.json();
 
@@ -451,6 +498,7 @@ async function download(url, format, platform) {
       throw new Error(data.error || 'Gagal download');
     }
   } catch (e) {
+    console.error('Download error:', e);
     popup.textContent = '❌ Error: ' + e.message;
     popup.className = 'popup show';
     popup.style.background = '#FF453A';
