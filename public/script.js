@@ -170,7 +170,7 @@ async function handleYouTubeSearch(keywords) {
 }
 
 // Fetch with timeout to prevent hanging
-async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+async function fetchWithTimeout(url, options = {}, timeout = 6000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -191,7 +191,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 10000) {
 }
 
 // Fetch with automatic retry and exponential backoff
-async function fetchWithRetry(url, options = {}, retries = 2, timeout = 10000) {
+async function fetchWithRetry(url, options = {}, retries = 1, timeout = 6000) {
   for (let i = 0; i <= retries; i++) {
     try {
       const response = await fetchWithTimeout(url, options, timeout);
@@ -200,8 +200,8 @@ async function fetchWithRetry(url, options = {}, retries = 2, timeout = 10000) {
       // If last retry, throw error
       if (i === retries) throw error;
 
-      // Exponential backoff: 500ms, 1s, 2s, max 3s
-      const delay = Math.min(500 * Math.pow(2, i), 3000);
+      // Fast retry: 300ms, max 1s
+      const delay = Math.min(300 * Math.pow(2, i), 1000);
       console.log(`Retry ${i + 1}/${retries} after ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -243,7 +243,7 @@ async function handleUrlDownload(url) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
-      }, 2, 8000);
+      }, 1, 5000);
       metadata = await res.json();
     } catch (error) {
       console.error('YouTube metadata error:', error.message);
@@ -300,7 +300,7 @@ async function handleUrlDownload(url) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
-      }, 2, 10000);
+      }, 1, 6000);
       const data = await res.json();
 
       if (data.success) {

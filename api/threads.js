@@ -10,29 +10,30 @@ const { saveDownload } = require('../lib/db');
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-// Metadata extraction function
+// Fast metadata extraction function with timeout
 async function getThreadsMetadata(url) {
     try {
         const { data: html } = await axios.get(url, {
+            timeout: 3000, // 3 seconds max
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
             }
         });
 
         const $ = cheerio.load(html);
         const ogImage = $('meta[property="og:image"]').attr('content');
         const ogTitle = $('meta[property="og:title"]').attr('content');
-        const ogDescription = $('meta[property="og:description"]').attr('content');
 
         if (ogImage || ogTitle) {
             return {
                 success: true,
-                title: ogTitle || ogDescription || 'Threads Post',
+                title: ogTitle || 'Threads Post',
                 thumbnail: ogImage,
                 platform: 'Threads'
             };
         }
 
+        // Fast fallback
         return {
             success: true,
             title: 'Threads Post',
@@ -40,12 +41,12 @@ async function getThreadsMetadata(url) {
             platform: 'Threads'
         };
     } catch (error) {
+        // Fast fail - return minimal data immediately
         return {
             success: true,
             title: 'Threads Post',
             thumbnail: null,
-            platform: 'Threads',
-            note: 'Metadata limited - content might be private'
+            platform: 'Threads'
         };
     }
 }

@@ -31,17 +31,18 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Get metadata using savetube (download with any format just to get info)
-        const result = await savetube.download(url, '720');
+        // Use lightweight metadata extraction (don't download full quality)
+        // Using lowest quality for speed - we only need metadata
+        const result = await savetube.download(url, '144');
 
         if (!result.status) {
-            return res.status(result.code).json({
+            return res.status(result.code || 500).json({
                 success: false,
-                error: result.error
+                error: result.error || 'Gagal mengambil info video'
             });
         }
 
-        // Return metadata
+        // Return metadata quickly
         res.json({
             success: true,
             title: result.result.title,
@@ -53,9 +54,12 @@ module.exports = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Thumbnail error:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'Gagal mengambil info video'
+        // Fast fail
+        res.json({
+            success: true,
+            title: 'YouTube Video',
+            thumbnail: null,
+            platform: 'YouTube'
         });
     }
 };

@@ -8,17 +8,22 @@ const { instagramDownload } = require('../lib/scrapers');
 const { getUserFromRequest } = require('../lib/session');
 const { saveDownload } = require('../lib/db');
 const axios = require('axios');
-const cheerio = require('cheerio');
 
-// Metadata extraction function
+// Fast metadata extraction function with timeout
 async function getInstagramMetadata(url) {
     try {
         const postId = url.match(/\/p\/([^/?]+)/)?.[1] || url.match(/\/reel\/([^/?]+)/)?.[1];
 
         if (postId) {
             try {
+                // Use oembed API with 3-second timeout
                 const oembedUrl = `https://graph.instagram.com/oembed?url=https://www.instagram.com/p/${postId}/`;
-                const { data } = await axios.get(oembedUrl);
+                const { data } = await axios.get(oembedUrl, {
+                    timeout: 3000, // 3 seconds max
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+                    }
+                });
 
                 return {
                     success: true,
@@ -27,31 +32,13 @@ async function getInstagramMetadata(url) {
                     author: data.author_name,
                     platform: 'Instagram'
                 };
-            } catch (oembedError) {
-                // Oembed failed, trying scraping...
+            } catch (error) {
+                // Fast fail - don't scrape HTML
+                console.log('Instagram oembed timeout');
             }
         }
 
-        const { data: html } = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        });
-
-        const $ = cheerio.load(html);
-        const ogImage = $('meta[property="og:image"]').attr('content');
-        const ogTitle = $('meta[property="og:title"]').attr('content');
-        const ogDescription = $('meta[property="og:description"]').attr('content');
-
-        if (ogImage) {
-            return {
-                success: true,
-                title: ogTitle || ogDescription || 'Instagram Media',
-                thumbnail: ogImage,
-                platform: 'Instagram'
-            };
-        }
-
+        // Fast fallback - return minimal data
         return {
             success: true,
             title: 'Instagram Media',
@@ -63,8 +50,7 @@ async function getInstagramMetadata(url) {
             success: true,
             title: 'Instagram Media',
             thumbnail: null,
-            platform: 'Instagram',
-            note: 'Metadata limited - content might be private'
+            platform: 'Instagram'
         };
     }
 }
