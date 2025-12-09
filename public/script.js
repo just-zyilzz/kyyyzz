@@ -57,7 +57,9 @@ function isUrl(text) {
       text.includes('threads.com') ||
       text.includes('facebook.com') ||
       text.includes('fb.watch') ||
-      text.includes('spotify.com');
+      text.includes('spotify.com') ||
+      text.includes('douyin.com') ||
+      text.includes('v.douyin.com');
   }
 }
 
@@ -66,6 +68,7 @@ function detectPlatform(url) {
   const lowerUrl = url.toLowerCase();
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'YouTube';
   if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vt.tiktok.com') || lowerUrl.includes('vm.tiktok.com')) return 'TikTok';
+  if (lowerUrl.includes('douyin.com') || lowerUrl.includes('v.douyin.com')) return 'Douyin';
   if (lowerUrl.includes('instagram.com')) return 'Instagram';
   if (lowerUrl.includes('threads.net') || lowerUrl.includes('threads.com')) return 'Threads';
   if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) return 'Facebook';
@@ -296,6 +299,19 @@ async function handleUrlDownload(url) {
       console.error('Threads metadata error:', error.message);
       metadata = { success: true, title: 'Threads Post', platform: 'Threads', thumbnail: null };
     }
+  } else if (platform === 'Douyin') {
+    try {
+      // Increased timeout to 25 seconds for Douyin API
+      const res = await fetchWithRetry('/api/douyin?metadata=true', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }, 3, 25000); // 3 retries, 25 second timeout
+      metadata = await res.json();
+    } catch (error) {
+      console.error('Douyin metadata error:', error.message);
+      metadata = { success: true, title: 'Douyin Video', platform: 'Douyin', thumbnail: null };
+    }
   } else if (platform === 'Facebook') {
     // Facebook - no metadata preview
     metadata = {
@@ -378,7 +394,7 @@ async function handleUrlDownload(url) {
           </div>
           <div class="download-btns">
             <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
-            ${platform === 'YouTube' || platform === 'TikTok' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
+            ${platform === 'YouTube' || platform === 'TikTok' || platform === 'Douyin' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
           </div>
         `;
     }
@@ -466,6 +482,9 @@ async function download(url, format, platform) {
       endpoint = format === 'audio' ? '/api/ytmp3' : '/api/ytmp4';
     } else if (platform === 'TikTok') {
       endpoint = '/api/tiktok';
+      body.format = format;
+    } else if (platform === 'Douyin') {
+      endpoint = '/api/douyin';
       body.format = format;
     } else if (platform === 'Instagram' || platform === 'Facebook') {
       endpoint = '/api/facebook';
