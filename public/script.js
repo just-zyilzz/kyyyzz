@@ -331,6 +331,20 @@ async function handleUrlDownload(url) {
     }
   }
 
+  // FIX: Improved error handling for different API response formats
+  if (!metadata) {
+    throw new Error('Gagal mengambil metadata dari server');
+  }
+
+  // Check for error responses (both old 'msg' format and new 'success: false' format)
+  if (metadata.msg) {
+    throw new Error(metadata.msg);
+  }
+
+  if (metadata.success === false) {
+    throw new Error(metadata.error || 'Gagal mengambil metadata');
+  }
+
   if (metadata.success) {
     const resultDiv = document.querySelector('.result');
 

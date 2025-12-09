@@ -7,12 +7,17 @@
 const { tiktokDownloaderVideo } = require('../lib/tiktok');
 
 module.exports = async (req, res) => {
-    // Only allow POST
-    if (req.method !== 'POST') {
+    // Allow both GET and POST
+    if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url, format = 'video', title } = req.body;
+    // Get parameters from POST body or GET query params
+    const url = req.method === 'POST' ? req.body.url : req.query.url;
+    const format = req.method === 'POST'
+        ? (req.body.format || 'video')
+        : (req.query.format || 'video');
+    const title = req.method === 'POST' ? req.body.title : req.query.title;
 
     // Validate URL
     if (!url) {
@@ -100,9 +105,21 @@ module.exports = async (req, res) => {
             }
 
             // Return video URL (HD no watermark by default)
-            const videoData = result.data.find(d => d.type === 'nowatermark_hd') ||
-                result.data.find(d => d.type === 'nowatermark') ||
-                result.data[0];
+            // FIX: Improved video selection with better validation
+            let videoData = result.data.find(d => d.type === 'nowatermark_hd');
+            if (!videoData) {
+                videoData = result.data.find(d => d.type === 'nowatermark');
+            }
+            if (!videoData) {
+                videoData = result.data.find(d => d.url); // Any video with URL
+            }
+            if (!videoData || !videoData.url) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'URL video tidak tersedia'
+                });
+            }
+
             downloadUrl = videoData.url;
             fileName = `${result.id || Date.now()}.mp4`;
         }

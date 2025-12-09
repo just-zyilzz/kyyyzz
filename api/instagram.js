@@ -56,7 +56,8 @@ async function getInstagramMetadata(url) {
 }
 
 module.exports = async (req, res) => {
-    if (req.method !== 'POST') {
+    // Allow both GET and POST
+    if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
@@ -64,7 +65,7 @@ module.exports = async (req, res) => {
     const metadataOnly = req.query.metadata === 'true';
 
     if (metadataOnly) {
-        const { url } = req.body;
+        const url = req.method === 'POST' ? req.body.url : req.query.url;
         if (!url) {
             return res.status(400).json({ success: false, error: 'URL tidak boleh kosong' });
         }
@@ -76,7 +77,9 @@ module.exports = async (req, res) => {
         return res.json(metadata);
     }
 
-    const { url, title } = req.body;
+    // Get parameters from POST body or GET query params
+    const url = req.method === 'POST' ? req.body.url : req.query.url;
+    const title = req.method === 'POST' ? req.body.title : req.query.title;
 
     if (!url) {
         return res.status(400).json({
@@ -146,7 +149,7 @@ module.exports = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Instagram download error:', error.message);
-        res.json({
+        res.status(500).json({
             success: false,
             error: 'Download gagal. Pastikan konten bersifat publik dan coba lagi'
         });

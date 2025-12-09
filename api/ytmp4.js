@@ -6,12 +6,17 @@
 const savetube = require('../lib/savetube');
 
 module.exports = async (req, res) => {
-    // Only allow POST
-    if (req.method !== 'POST') {
+    // Allow both GET and POST
+    if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url, title, quality = '720' } = req.body;
+    // Get parameters from POST body or GET query params
+    const url = req.method === 'POST' ? req.body.url : req.query.url;
+    const title = req.method === 'POST' ? req.body.title : req.query.title;
+    const quality = req.method === 'POST'
+        ? (req.body.quality || '720')
+        : (req.query.quality || '720');
 
     // Validate URL
     if (!url) {
@@ -35,21 +40,29 @@ module.exports = async (req, res) => {
         const result = await savetube.download(url, quality);
 
         if (!result.status) {
-            return res.status(result.code).json({
+            return res.status(result.code || 500).json({
                 success: false,
-                error: result.error
+                error: result.error || 'Download gagal'
+            });
+        }
+
+        // FIX: Validate result.result exists
+        if (!result.result) {
+            return res.status(500).json({
+                success: false,
+                error: 'Data hasil download tidak valid'
             });
         }
 
         // Return response in expected format
         res.json({
             success: true,
-            title: result.result.title,
-            thumbnail: result.result.thumbnail,
+            title: result.result.title || 'YouTube Video',
+            thumbnail: result.result.thumbnail || null,
             downloadUrl: result.result.download,
-            fileName: result.result.id + '.mp4',
-            quality: result.result.quality,
-            duration: result.result.duration
+            fileName: (result.result.id || Date.now()) + '.mp4',
+            quality: result.result.quality || quality,
+            duration: result.result.duration || 0
         });
     } catch (error) {
         console.error('❌ Download error:', error.message);

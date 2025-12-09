@@ -6,12 +6,14 @@
 const savetube = require('../lib/savetube');
 
 module.exports = async (req, res) => {
-    // Only allow POST
-    if (req.method !== 'POST') {
+    // Allow both GET and POST
+    if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url, title } = req.body;
+    // Get parameters from POST body or GET query params
+    const url = req.method === 'POST' ? req.body.url : req.query.url;
+    const title = req.method === 'POST' ? req.body.title : req.query.title;
 
     // Validate URL
     if (!url) {
@@ -35,21 +37,29 @@ module.exports = async (req, res) => {
         const result = await savetube.download(url, 'mp3');
 
         if (!result.status) {
-            return res.status(result.code).json({
+            return res.status(result.code || 500).json({
                 success: false,
-                error: result.error
+                error: result.error || 'Download gagal'
+            });
+        }
+
+        // FIX: Validate result.result exists
+        if (!result.result) {
+            return res.status(500).json({
+                success: false,
+                error: 'Data hasil download tidak valid'
             });
         }
 
         // Return response in expected format
         res.json({
             success: true,
-            title: result.result.title,
-            thumbnail: result.result.thumbnail,
+            title: result.result.title || 'YouTube Audio',
+            thumbnail: result.result.thumbnail || null,
             downloadUrl: result.result.download,
-            fileName: result.result.id + '.mp3',
+            fileName: (result.result.id || Date.now()) + '.mp3',
             format: 'mp3',
-            duration: result.result.duration
+            duration: result.result.duration || 0
         });
     } catch (error) {
         console.error('❌ Download error:', error.message);

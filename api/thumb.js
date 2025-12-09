@@ -6,12 +6,13 @@
 const savetube = require('../lib/savetube');
 
 module.exports = async (req, res) => {
-    // Only allow POST
-    if (req.method !== 'POST') {
+    // Allow both GET and POST
+    if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url } = req.body;
+    // Get parameters from POST body or GET query params
+    const url = req.method === 'POST' ? req.body.url : req.query.url;
 
     // Validate URL
     if (!url) {
