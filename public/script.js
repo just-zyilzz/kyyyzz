@@ -259,11 +259,12 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'TikTok') {
     try {
+      // FIX: Increase timeout to 25 seconds for slow TikTok API on live server
       const res = await fetchWithRetry('/api/tiktok?metadata=true', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
-      }, 2, 8000);
+      }, 3, 25000); // 3 retries, 25 second timeout
       metadata = await res.json();
     } catch (error) {
       console.error('TikTok metadata error:', error.message);
@@ -271,11 +272,12 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'Instagram') {
     try {
+      // Increased timeout to 15 seconds for better reliability
       const res = await fetchWithRetry('/api/instagram?metadata=true', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
-      }, 2, 8000);
+      }, 2, 15000); // 15 second timeout
       metadata = await res.json();
     } catch (error) {
       console.error('Instagram metadata error:', error.message);
@@ -283,11 +285,12 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'Threads') {
     try {
+      // Increased timeout to 15 seconds for better reliability
       const res = await fetchWithRetry('/api/threads?metadata=true', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
-      }, 2, 8000);
+      }, 2, 15000); // 15 second timeout
       metadata = await res.json();
     } catch (error) {
       console.error('Threads metadata error:', error.message);
