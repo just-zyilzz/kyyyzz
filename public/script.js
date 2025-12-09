@@ -76,6 +76,14 @@ function detectPlatform(url) {
 // Debounce to prevent multiple simultaneous requests
 let isProcessing = false;
 
+// Add Enter key support for input field (works on both mobile and desktop)
+document.getElementById('urlInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault(); // Prevent form submission if inside a form
+    document.getElementById('fetchBtn').click(); // Trigger the fetch button
+  }
+});
+
 document.getElementById('fetchBtn').addEventListener('click', async () => {
   const input = document.getElementById('urlInput').value.trim();
   if (!input) {
