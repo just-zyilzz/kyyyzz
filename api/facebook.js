@@ -1,9 +1,55 @@
 /**
  * API Endpoint: /api/facebook
  * Download Facebook/Instagram video menggunakan Snapsave API
+ * Also handles metadata-only requests via ?metadata=true
  */
 
 const Instagram = require('../lib/instagram');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+// Fast metadata extraction function with timeout
+async function getFacebookMetadata(url) {
+    try {
+        const { data: html } = await axios.get(url, {
+            timeout: 3000, // 3 seconds max
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+            }
+        });
+
+        const $ = cheerio.load(html);
+        const ogImage = $('meta[property="og:image"]').attr('content');
+        const ogTitle = $('meta[property="og:title"]').attr('content');
+        const ogDescription = $('meta[property="og:description"]').attr('content');
+
+        if (ogImage || ogTitle) {
+            return {
+                success: true,
+                title: ogTitle || ogDescription || 'Facebook Media',
+                thumbnail: ogImage,
+                thumbnailUrl: ogImage,
+                platform: 'Facebook'
+            };
+        }
+
+        // Fast fallback
+        return {
+            success: true,
+            title: 'Facebook Media',
+            thumbnail: null,
+            platform: 'Facebook'
+        };
+    } catch (error) {
+        // Fast fail - return minimal data immediately
+        return {
+            success: true,
+            title: 'Facebook Media',
+            thumbnail: null,
+            platform: 'Facebook'
+        };
+    }
+}
 
 module.exports = async (req, res) => {
     // Allow both GET and POST
@@ -37,6 +83,14 @@ module.exports = async (req, res) => {
             success: false,
             error: 'Endpoint ini hanya untuk Facebook atau Instagram'
         });
+    }
+
+    // Check if this is a metadata-only request (only for Facebook, Instagram uses its own endpoint)
+    const metadataOnly = req.query.metadata === 'true';
+
+    if (metadataOnly && isFacebook) {
+        const metadata = await getFacebookMetadata(url);
+        return res.json(metadata);
     }
 
     try {
