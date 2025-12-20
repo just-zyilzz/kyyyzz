@@ -273,12 +273,10 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'TikTok') {
     try {
-      // FIX: Increase timeout to 25 seconds for slow TikTok API on live server
-      const res = await fetchWithRetry('/api/tiktok?metadata=true', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      }, 3, 25000); // 3 retries, 25 second timeout
+      // Use GET method with metadata=true for faster preview
+      const res = await fetchWithRetry(`/api/tiktok?url=${encodeURIComponent(url)}&metadata=true`, {
+        method: 'GET'
+      }, 2, 15000); // 2 retries, 15 second timeout
       metadata = await res.json();
     } catch (error) {
       console.error('TikTok metadata error:', error.message);

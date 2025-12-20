@@ -41,18 +41,22 @@ module.exports = async (req, res) => {
 
     if (metadataOnly) {
         try {
+            console.log('📋 TikTok metadata request for:', url);
             const result = await tiktokDownloaderVideo(url);
             if (result.status) {
+                console.log('✅ TikTok metadata success:', result.title);
                 return res.json({
                     success: true,
                     title: result.title,
                     author: result.author?.nickname || 'Unknown',
                     thumbnail: result.cover,
+                    thumbnailUrl: result.cover,
                     duration: result.duration,
                     stats: result.stats,
                     platform: 'TikTok'
                 });
             } else {
+                console.log('⚠️ TikTok API returned no data');
                 return res.json({
                     success: true,
                     title: 'TikTok Video',
@@ -61,6 +65,7 @@ module.exports = async (req, res) => {
                 });
             }
         } catch (error) {
+            console.error('❌ TikTok metadata error:', error.message);
             return res.json({
                 success: true,
                 title: 'TikTok Video',
