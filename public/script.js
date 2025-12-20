@@ -149,7 +149,7 @@ async function handleYouTubeSearch(keywords) {
     data.results.forEach((video, index) => {
       html += `
       <div class="search-result-item" data-video-url="${video.url || ''}" data-video-title="${video.title || ''}" style="display: flex; gap: 15px; padding: 15px; background: var(--input-bg); border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s;">
-        <img src="${video.thumbnail || ''}" alt="${video.title || ''}" style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px;">
+        <img src="${video.thumbnail || ''}" alt="${video.title || ''}" loading="lazy" style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px;">
         <div style="flex: 1;">
           <h4 style="margin: 0 0 8px 0; font-size: 14px; color: var(--text-primary);">${video.title || ''}</h4>
           <p style="margin: 4px 0; font-size: 12px; color: var(--text-secondary);">
@@ -165,6 +165,17 @@ async function handleYouTubeSearch(keywords) {
 
     resultDiv.innerHTML = html;
     resultDiv.style.display = 'block';
+
+    // Add lazy loading handlers for search result thumbnails
+    document.querySelectorAll('.search-result-item img').forEach(img => {
+      img.addEventListener('load', function () {
+        this.classList.add('loaded');
+      });
+      // For cached images that load immediately
+      if (img.complete) {
+        img.classList.add('loaded');
+      }
+    });
 
     // Add event listeners to search results
     document.querySelectorAll('.search-result-item').forEach(item => {
@@ -370,7 +381,7 @@ async function handleUrlDownload(url) {
     // Special display for Spotify
     if (platform === 'Spotify') {
       resultDiv.innerHTML = `
-        <img src="${metadata.thumbnail}" alt="Thumbnail" style="max-height:300px; width:300px; border-radius:12px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <img src="${metadata.thumbnail}" alt="Thumbnail" loading="lazy" style="max-height:300px; width:300px; border-radius:12px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
         <div class="meta">
           <p><strong>Platform:</strong> <span style="color:#1DB954">Spotify</span></p>
           <p><strong>Judul:</strong> ${metadata.title}</p>
@@ -384,7 +395,7 @@ async function handleUrlDownload(url) {
     } else {
       // Standard display for other platforms
       resultDiv.innerHTML = `
-          ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+          ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" loading="lazy" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
           <div class="meta">
             <p><strong>Platform:</strong> ${platform}</p>
             ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
@@ -400,6 +411,18 @@ async function handleUrlDownload(url) {
     }
 
     resultDiv.style.display = 'block';
+
+    // Add progressive loading to result thumbnails
+    const resultImg = resultDiv.querySelector('img');
+    if (resultImg) {
+      resultImg.addEventListener('load', function () {
+        this.classList.add('loaded');
+      });
+      // For cached images
+      if (resultImg.complete) {
+        resultImg.classList.add('loaded');
+      }
+    }
 
     // Attach download handlers
     if (platform === 'Spotify') {

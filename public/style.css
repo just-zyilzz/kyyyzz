@@ -735,3 +735,49 @@ body.dark .dl-audio {
     aspect-ratio: 16/9;
   }
 }
+
+/* ===== PROGRESSIVE IMAGE LOADING ===== */
+
+/* Image loading states for smooth fade-in */
+.result img,
+.search-result-item img {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+
+.result img.loaded,
+.search-result-item img.loaded {
+  opacity: 1;
+}
+
+/* Image container with placeholder background */
+.result img {
+  background: linear-gradient(110deg,
+      var(--input-bg) 8%,
+      rgba(255, 255, 255, 0.1) 18%,
+      var(--input-bg) 33%);
+  background-size: 200% 100%;
+  animation: shimmerPlaceholder 1.5s linear infinite;
+}
+
+.result img.loaded {
+  animation: none;
+  background: transparent;
+}
+
+@keyframes shimmerPlaceholder {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Optimize for mobile - reduce animations */
+@media (max-width: 480px) {
+  .result img {
+    animation-duration: 2s;
+  }
+}
