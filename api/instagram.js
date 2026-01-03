@@ -116,12 +116,20 @@ module.exports = async (req, res) => {
 
         const user = getUserFromRequest(req);
 
-        // Get first download URL
-        const downloadUrl = Array.isArray(result.url)
-            ? result.url[0]
-            : (Array.isArray(result.urls) ? result.urls[0] : result.url);
+        // Handle both single and carousel posts
+        let allUrls = [];
+        if (Array.isArray(result.url)) {
+            allUrls = result.url;
+        } else if (Array.isArray(result.urls)) {
+            allUrls = result.urls;
+        } else if (result.url) {
+            allUrls = [result.url];
+        }
 
+        // Get first download URL for backward compatibility
+        const downloadUrl = allUrls[0];
         const fileName = `instagram_${Date.now()}.mp4`;
+        const isCarousel = allUrls.length > 1;
 
         // Save to database history
         if (user && user.id) {
@@ -138,12 +146,14 @@ module.exports = async (req, res) => {
             }
         }
 
-        // Return response
+        // Return response with all URLs for carousel support
         res.json({
             success: true,
             downloadUrl: downloadUrl,
-            urls: result.url || result.urls,
+            urls: allUrls,
             fileName: fileName,
+            isCarousel: isCarousel,
+            carouselCount: allUrls.length,
             metadata: result.metadata,
             service: result.service || 'instagram'
         });

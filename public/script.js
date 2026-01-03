@@ -291,6 +291,24 @@ async function handleUrlDownload(url) {
         body: JSON.stringify({ url })
       }, 2, 15000); // 15 second timeout
       metadata = await res.json();
+
+      // Fetch full data if carousel detected in metadata
+      if (metadata.success && !metadata.isCarousel) {
+        // Try to get full carousel data
+        try {
+          const fullRes = await fetchWithRetry('/api/instagram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          }, 2, 20000);
+          const fullData = await fullRes.json();
+          if (fullData.success && fullData.isCarousel) {
+            metadata = { ...metadata, ...fullData };
+          }
+        } catch (e) {
+          console.log('Could not fetch full carousel data:', e.message);
+        }
+      }
     } catch (error) {
       console.error('Instagram metadata error:', error.message);
       metadata = { success: true, title: 'Instagram Media', platform: 'Instagram', thumbnail: null };
@@ -390,6 +408,41 @@ async function handleUrlDownload(url) {
           <button class="dl-audio-spotify" data-url="${metadata.downloadUrl}" data-filename="${metadata.fileName}" style="background:#1DB954; color:white;">🎵 Download MP3</button>
         </div>
       `;
+    } else if (platform === 'Instagram' && metadata.isCarousel && metadata.urls) {
+      // Special display for Instagram carousel
+      let carouselHtml = `
+        <div class="meta">
+          <p><strong>Platform:</strong> Instagram Carousel</p>
+          ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+          ${metadata.metadata?.username ? `<p><strong>Author:</strong> @${metadata.metadata.username}</p>` : ''}
+          <p><strong>Items:</strong> ${metadata.carouselCount} foto/video</p>
+        </div>
+      `;
+
+      // Display all carousel items
+      carouselHtml += '<div style="margin: 20px 0;">';
+      metadata.urls.forEach((mediaUrl, index) => {
+        const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
+        carouselHtml += `
+          <div class="carousel-item" style="display: flex; gap: 15px; padding: 12px; background: var(--input-bg); border-radius: 12px; margin-bottom: 10px; align-items: center;">
+            <div style="flex: 1;">
+              <p style="margin: 0; font-weight: 600;">${isVideo ? '🎥' : '📷'} Item ${index + 1}</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-secondary);">${isVideo ? 'Video' : 'Foto'}</p>
+            </div>
+            <button class="dl-carousel-item" data-url="${mediaUrl}" data-index="${index}" style="padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">📥 Download</button>
+          </div>
+        `;
+      });
+      carouselHtml += '</div>';
+
+      // Add Download All button
+      carouselHtml += `
+        <div class="download-btns" style="margin-top: 15px;">
+          <button class="dl-all-carousel" data-urls='${JSON.stringify(metadata.urls)}' style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600;">⬇️ Download All (${metadata.carouselCount} items)</button>
+        </div>
+      `;
+
+      resultDiv.innerHTML = carouselHtml;
     } else {
       // Standard display for other platforms
       resultDiv.innerHTML = `
@@ -431,6 +484,24 @@ async function handleUrlDownload(url) {
           const youtubeUrl = e.target.dataset.url;
           // Use standard download function but treat it as YouTube audio
           download(youtubeUrl, 'audio', 'YouTube');
+        };
+      }
+    } else if (platform === 'Instagram' && metadata.isCarousel) {
+      // Handler for carousel individual items
+      document.querySelectorAll('.dl-carousel-item').forEach(btn => {
+        btn.onclick = (e) => {
+          const mediaUrl = e.target.dataset.url;
+          const index = parseInt(e.target.dataset.index);
+          downloadCarouselItem(mediaUrl, index);
+        };
+      });
+
+      // Handler for Download All button
+      const downloadAllBtn = resultDiv.querySelector('.dl-all-carousel');
+      if (downloadAllBtn) {
+        downloadAllBtn.onclick = (e) => {
+          const urls = JSON.parse(e.target.dataset.urls);
+          downloadAllCarousel(urls);
         };
       }
     } else {
@@ -508,7 +579,7 @@ async function download(url, format, platform) {
       endpoint = '/api/douyin';
       body.format = format;
     } else if (platform === 'Instagram' || platform === 'Facebook') {
-      endpoint = '/api/facebook';
+      endpoint = '/api/instagram';
     } else if (platform === 'Threads') {
       endpoint = '/api/threads';
     } else {
@@ -571,4 +642,61 @@ async function download(url, format, platform) {
       popup.classList.remove('show');
     }, 4000);
   }
+}
+
+// Download Instagram carousel item directly
+async function downloadCarouselItem(mediaUrl, index) {
+  const popup = document.getElementById('popup');
+
+  try {
+    const fileName = `instagram_carousel_${index + 1}_${Date.now()}.${mediaUrl.includes('.mp4') || mediaUrl.includes('video') ? 'mp4' : 'jpg'}`;
+
+    popup.textContent = `⏳ Download item ${index + 1}...`;
+    popup.className = 'popup show';
+    popup.style.background = 'rgba(28, 28, 30, 0.95)';
+
+    await downloadFile(mediaUrl, fileName);
+
+    popup.textContent = `✅ Item ${index + 1} selesai!`;
+    popup.style.background = '#30D158';
+    setTimeout(() => popup.classList.remove('show'), 2000);
+  } catch (e) {
+    console.error('Carousel item download error:', e);
+    popup.textContent = `❌ Error item ${index + 1}: ${e.message}`;
+    popup.style.background = '#FF453A';
+    setTimeout(() => popup.classList.remove('show'), 3000);
+  }
+}
+
+// Download all carousel items sequentially
+async function downloadAllCarousel(mediaUrls) {
+  const popup = document.getElementById('popup');
+
+  popup.textContent = `⏳ Memulai download ${mediaUrls.length} items...`;
+  popup.className = 'popup show';
+  popup.style.background = 'rgba(28, 28, 30, 0.95)';
+
+  let successCount = 0;
+
+  for (let i = 0; i < mediaUrls.length; i++) {
+    try {
+      const fileName = `instagram_carousel_${i + 1}_${Date.now()}.${mediaUrls[i].includes('.mp4') || mediaUrls[i].includes('video') ? 'mp4' : 'jpg'}`;
+
+      popup.textContent = `⏳ Download ${i + 1}/${mediaUrls.length}...`;
+
+      await downloadFile(mediaUrls[i], fileName);
+      successCount++;
+
+      // Small delay between downloads to not overwhelm browser
+      if (i < mediaUrls.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    } catch (e) {
+      console.error(`Failed to download item ${i + 1}:`, e);
+    }
+  }
+
+  popup.textContent = `✅ Download selesai! (${successCount}/${mediaUrls.length})`;
+  popup.style.background = '#30D158';
+  setTimeout(() => popup.classList.remove('show'), 4000);
 }
