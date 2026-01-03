@@ -435,9 +435,10 @@ async function handleUrlDownload(url) {
         carouselHtml += `
           <div class="carousel-item" style="display: flex; gap: 14px; padding: 14px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px; align-items: center; transition: all 0.2s ease;">
             ${!isVideo ? `<img src="${thumbnailUrl}" alt="Item ${index + 1}" loading="lazy" 
-                 style="width: 90px; height: 90px; object-fit: cover; border-radius: 10px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(66, 165, 245, 0.2);" 
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
-            <div style="width: 90px; height: 90px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.3) 0%, rgba(100, 181, 246, 0.3) 100%); border-radius: 10px; ${isVideo ? 'display: flex' : 'display: none'}; align-items: center; justify-content: center; flex-shrink: 0; font-size: 36px;">
+                 style="width: 90px; height: 90px; object-fit: cover; border-radius: 10px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(66, 165, 245, 0.2); background: #e3f2fd;" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                 onload="if(this.naturalWidth === 0) { this.style.display='none'; this.nextElementSibling.style.display='flex'; }">` : ''}
+            <div style="width: 90px; height: 90px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.5) 0%, rgba(100, 181, 246, 0.5) 100%); border-radius: 10px; ${isVideo ? 'display: flex' : 'display: none'}; align-items: center; justify-content: center; flex-shrink: 0; font-size: 36px;">
               ${isVideo ? '🎥' : '📷'}
             </div>
             <div style="flex: 1; min-width: 0; overflow: hidden;">
