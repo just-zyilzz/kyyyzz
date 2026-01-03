@@ -432,10 +432,9 @@ async function handleUrlDownload(url) {
         const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
         const thumbnailUrl = isVideo ? '' : `/api/instagram-proxy?url=${encodeURIComponent(mediaUrl)}&type=preview`;
 
-        carouselHtml += `
         // Layered structure: Container > Icon (Background) > Image (Foreground)
         carouselHtml += `
-          < div class="carousel-item" style = "display: flex; gap: 14px; padding: 14px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px; align-items: center; transition: all 0.2s ease;" >
+          <div class="carousel-item" style="display: flex; gap: 14px; padding: 14px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px; align-items: center; transition: all 0.2s ease;">
             
             <div style="position: relative; width: 90px; height: 90px; flex-shrink: 0;">
               <!-- Fallback Icon (Always visible behind image) -->
@@ -450,7 +449,6 @@ async function handleUrlDownload(url) {
                    onload="if(this.naturalWidth === 0) this.style.opacity='0';">` : ''}
             </div>
 
-            <div style="flex: 1; min-width: 0; overflow: hidden; z-index: 5;">
             <div style="flex: 1; min-width: 0; overflow: hidden;">
               <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 15px; color: var(--text-primary);">${isVideo ? '🎥' : '📷'} Item ${index + 1}</p>
               <p style="margin: 0; font-size: 13px; color: var(--text-secondary); opacity: 0.8;">${isVideo ? 'Video' : 'Foto'}</p>
@@ -477,7 +475,7 @@ async function handleUrlDownload(url) {
     } else {
       // Standard display for other platforms
       resultDiv.innerHTML = `
-          ${ metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" loading="lazy" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : '' }
+          ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" loading="lazy" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
           <div class="meta">
             <p><strong>Platform:</strong> ${platform}</p>
             ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
@@ -638,7 +636,7 @@ async function download(url, format, platform) {
 
       // Ensure fileName has proper extension
       if (!fileName) {
-        fileName = `download_${ Date.now() }${ ext } `;
+        fileName = `download_${Date.now()}${ext} `;
       } else if (!fileName.toLowerCase().endsWith(ext)) {
         fileName += ext;
       }
@@ -681,14 +679,14 @@ async function downloadCarouselItem(mediaUrl, index) {
 
   try {
     const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
-    const fileName = `instagram_carousel_${ index + 1 }_${ Date.now() }.${ isVideo ? 'mp4' : 'jpg' } `;
+    const fileName = `instagram_carousel_${index + 1}_${Date.now()}.${isVideo ? 'mp4' : 'jpg'} `;
 
-    popup.textContent = `⏳ Download item ${ index + 1 }...`;
+    popup.textContent = `⏳ Download item ${index + 1}...`;
     popup.className = 'popup show';
     popup.style.background = 'rgba(28, 28, 30, 0.95)';
 
     // Use proxy endpoint to download
-    const proxyUrl = `/ api / instagram - proxy ? url = ${ encodeURIComponent(mediaUrl) } `;
+    const proxyUrl = `/ api / instagram - proxy ? url = ${encodeURIComponent(mediaUrl)} `;
 
     // Create anchor and trigger download
     const a = document.createElement('a');
@@ -698,12 +696,12 @@ async function downloadCarouselItem(mediaUrl, index) {
     a.click();
     document.body.removeChild(a);
 
-    popup.textContent = `✅ Item ${ index + 1 } selesai!`;
+    popup.textContent = `✅ Item ${index + 1} selesai!`;
     popup.style.background = '#30D158';
     setTimeout(() => popup.classList.remove('show'), 2000);
   } catch (e) {
     console.error('Carousel item download error:', e);
-    popup.textContent = `❌ Error item ${ index + 1 }: ${ e.message } `;
+    popup.textContent = `❌ Error item ${index + 1}: ${e.message} `;
     popup.style.background = '#FF453A';
     setTimeout(() => popup.classList.remove('show'), 3000);
   }
@@ -713,7 +711,7 @@ async function downloadCarouselItem(mediaUrl, index) {
 async function downloadAllCarousel(mediaUrls) {
   const popup = document.getElementById('popup');
 
-  popup.textContent = `⏳ Memulai download ${ mediaUrls.length } items...`;
+  popup.textContent = `⏳ Memulai download ${mediaUrls.length} items...`;
   popup.className = 'popup show';
   popup.style.background = 'rgba(28, 28, 30, 0.95)';
 
@@ -722,33 +720,33 @@ async function downloadAllCarousel(mediaUrls) {
   for (let i = 0; i < mediaUrls.length; i++) {
     try {
       const isVideo = mediaUrls[i].includes('.mp4') || mediaUrls[i].includes('video');
-      const fileName = `instagram_carousel_${ i + 1 }_${ Date.now() + i }.${ isVideo ? 'mp4' : 'jpg' } `;
+      const fileName = `instagram_carousel_${i + 1}_${Date.now() + i}.${isVideo ? 'mp4' : 'jpg'} `;
 
-      popup.textContent = `⏳ Download ${ i + 1 }/${mediaUrls.length}...`;
+      popup.textContent = `⏳ Download ${i + 1}/${mediaUrls.length}...`;
 
-        // Use proxy endpoint to download
-        const proxyUrl = `/api/instagram-proxy?url=${encodeURIComponent(mediaUrls[i])}`;
+      // Use proxy endpoint to download
+      const proxyUrl = `/api/instagram-proxy?url=${encodeURIComponent(mediaUrls[i])}`;
 
-        // Create anchor and trigger download
-        const a = document.createElement('a');
-        a.href = proxyUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+      // Create anchor and trigger download
+      const a = document.createElement('a');
+      a.href = proxyUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
-        successCount++;
+      successCount++;
 
-        // Delay between downloads
-        if (i < mediaUrls.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      } catch (e) {
-        console.error(`Failed to download item ${i + 1}:`, e);
+      // Delay between downloads
+      if (i < mediaUrls.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
+    } catch (e) {
+      console.error(`Failed to download item ${i + 1}:`, e);
     }
-
-    popup.textContent = `✅ Download selesai! (${successCount}/${mediaUrls.length})`;
-    popup.style.background = '#30D158';
-    setTimeout(() => popup.classList.remove('show'), 4000);
   }
+
+  popup.textContent = `✅ Download selesai! (${successCount}/${mediaUrls.length})`;
+  popup.style.background = '#30D158';
+  setTimeout(() => popup.classList.remove('show'), 4000);
+}

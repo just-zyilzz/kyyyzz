@@ -147,6 +147,7 @@ module.exports = async (req, res) => {
         }
 
         // Return response with all URLs for carousel support
+        console.log(`[Instagram API] Returning ${allUrls.length} URLs for carousel: ${isCarousel}`);
         res.json({
             success: true,
             downloadUrl: downloadUrl,
