@@ -430,8 +430,7 @@ async function handleUrlDownload(url) {
       for (let index = 0; index < itemsToShow; index++) {
         const mediaUrl = metadata.urls[index];
         const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
-        // Use proxy for thumbnail to avoid CORS
-        const thumbnailUrl = isVideo ? '' : `/api/instagram-proxy?url=${encodeURIComponent(mediaUrl)}`;
+        const thumbnailUrl = isVideo ? '' : `/api/instagram-proxy?url=${encodeURIComponent(mediaUrl)}&type=preview`;
 
         carouselHtml += `
           <div class="carousel-item" style="display: flex; gap: 14px; padding: 14px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px; align-items: center; transition: all 0.2s ease;">
