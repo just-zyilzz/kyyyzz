@@ -419,9 +419,9 @@ async function handleUrlDownload(url) {
         </div>
       `;
 
-      // Display all carousel items (up to 20) with thumbnails using proxy
+      // Display carousel items (up to 12) with thumbnails using proxy
       carouselHtml += '<div style="margin: 16px 0; display: flex; flex-direction: column; gap: 12px;">';
-      const itemsToShow = Math.min(metadata.urls.length, 20); // Limit to 20 items
+      const itemsToShow = Math.min(metadata.urls.length, 12); // Limit to 12 items
 
       for (let index = 0; index < itemsToShow; index++) {
         const mediaUrl = metadata.urls[index];
@@ -441,15 +441,15 @@ async function handleUrlDownload(url) {
               <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 15px; color: var(--text-primary);">${isVideo ? '🎥' : '📷'} Item ${index + 1}</p>
               <p style="margin: 0; font-size: 13px; color: var(--text-secondary); opacity: 0.8;">${isVideo ? 'Video' : 'Foto'}</p>
             </div>
-            <button class="dl-carousel-item" data-url="${mediaUrl}" data-index="${index}" style="padding: 12px 20px; background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; white-space: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(66, 165, 245, 0.3); transition: all 0.2s ease; min-width: 110px;">📥 Download</button>
+            <button class="dl-carousel-item" data-url="${mediaUrl}" data-index="${index}" style="padding: 11px 16px; background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(66, 165, 245, 0.3); transition: all 0.2s ease;">📥 Download</button>
           </div>
         `;
       }
       carouselHtml += '</div>';
 
-      // Show message if more than 20 items
-      if (metadata.urls.length > 20) {
-        carouselHtml += '<p style="text-align: center; color: var(--text-secondary); font-size: 13px; margin: 12px 0;">Menampilkan 20 dari ' + metadata.urls.length + ' items</p>';
+      // Show message if more than 12 items
+      if (metadata.urls.length > 12) {
+        carouselHtml += '<p style="text-align: center; color: var(--text-secondary); font-size: 13px; margin: 12px 0;">Menampilkan 12 dari ' + metadata.urls.length + ' items</p>';
       }
 
       // Add Download All button with aesthetic styling
