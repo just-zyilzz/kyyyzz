@@ -419,57 +419,43 @@ async function handleUrlDownload(url) {
         </div>
       `;
 
-      // Display carousel items (up to 12) with thumbnails using proxy
-      carouselHtml += '<div style="margin: 16px 0; display: flex; flex-direction: column; gap: 12px;">';
+      // Display only the FIRST thumbnail as preview
+      const firstMediaUrl = metadata.urls[0];
+      const isVideo = firstMediaUrl.includes('.mp4') || firstMediaUrl.includes('video');
+      const thumbnailUrl = isVideo ? '' : `/api/instagram-proxy?url=${encodeURIComponent(firstMediaUrl)}&type=preview`;
 
-      // Hitung jumlah item (Max 12)
-      // LOOPING AUTOMATICALLY: Code ini akan diulang sebanyak item yg ada
-      const itemsToShow = Math.min(metadata.urls.length, 12);
-      console.log(`[Carousel] Found ${metadata.urls.length} items, showing ${itemsToShow}`);
+      console.log(`[Carousel] Showing preview of first item from ${metadata.urls.length} total items`);
 
-      for (let index = 0; index < itemsToShow; index++) {
-        const mediaUrl = metadata.urls[index];
-        const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
-        const thumbnailUrl = isVideo ? '' : `/api/instagram-proxy?url=${encodeURIComponent(mediaUrl)}&type=preview`;
-
-        // Layered structure: Container > Icon (Background) > Image (Foreground)
-        carouselHtml += `
-          <div class="carousel-item" style="display: flex; gap: 14px; padding: 14px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px; align-items: center; transition: all 0.2s ease;">
+      // Single thumbnail preview
+      carouselHtml += `
+        <div style="margin: 16px 0;">
+          <div style="display: flex; justify-content: center; align-items: center; padding: 20px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px;">
             
-            <div style="position: relative; width: 90px; height: 90px; flex-shrink: 0;">
-              <!-- Fallback Icon (Always visible behind image) -->
-              <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 10px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.4) 0%, rgba(100, 181, 246, 0.4) 100%); display: flex; align-items: center; justify-content: center; font-size: 32px;">
+            <div style="position: relative; width: 200px; height: 200px;">
+              <!-- Fallback Icon -->
+              <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.4) 0%, rgba(100, 181, 246, 0.4) 100%); display: flex; align-items: center; justify-content: center; font-size: 64px;">
                 ${isVideo ? '🎥' : '📷'}
               </div>
               
-              <!-- Image (Overlay) - Hides on error -->
-              ${!isVideo ? `<img src="${thumbnailUrl}" alt="Item ${index + 1}" loading="lazy" 
-                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; z-index: 2; transition: opacity 0.3s;" 
-                   onerror="this.style.opacity='0'; this.style.pointerEvents='none';"
+              <!-- Preview Image -->
+              ${!isVideo ? `<img src="${thumbnailUrl}" alt="Preview" loading="lazy" 
+                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; z-index: 2; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);" 
+                   onerror="this.style.opacity='0';"
                    onload="if(this.naturalWidth === 0) this.style.opacity='0';">` : ''}
             </div>
-
-            <div style="flex: 1; min-width: 0; overflow: hidden;">
-              <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 15px; color: var(--text-primary);">${isVideo ? '🎥' : '📷'} Item ${index + 1}</p>
-              <p style="margin: 0; font-size: 13px; color: var(--text-secondary); opacity: 0.8;">${isVideo ? 'Video' : 'Foto'}</p>
-            </div>
-            <button class="dl-carousel-item" data-url="${mediaUrl}" data-index="${index}" style="padding: 11px 16px; background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(66, 165, 245, 0.3); transition: all 0.2s ease;">📥 Download</button>
+            
           </div>
-        `;
-      }
-      carouselHtml += '</div>';
+        </div>
+      `;
 
-      // Show message if more than 12 items
-      if (metadata.urls.length > 12) {
-        carouselHtml += '<p style="text-align: center; color: var(--text-secondary); font-size: 13px; margin: 12px 0;">Menampilkan 12 dari ' + metadata.urls.length + ' items</p>';
-      }
-
-      // Add Download All button with aesthetic styling
+      // Download All button only
       carouselHtml += `
-          < div class="download-btns" style = "margin-top: 15px;" >
-            <button class="dl-all-carousel" data-urls='${JSON.stringify(metadata.urls)}' style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3); transition: all 0.2s ease;">⬇️ Download All (${metadata.carouselCount} items)</button>
-        </div >
-          `;
+        <div class="download-btns" style="margin-top: 20px;">
+          <button class="dl-all-carousel" data-urls='${JSON.stringify(metadata.urls)}' style="width: 100%; padding: 16px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 18px; font-weight: 600; box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4); transition: all 0.3s ease;">
+            ⬇️ Download All (${metadata.carouselCount} items)
+          </button>
+        </div>
+      `;
 
       resultDiv.innerHTML = carouselHtml;
     } else {
