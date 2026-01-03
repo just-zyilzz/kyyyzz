@@ -419,17 +419,23 @@ async function handleUrlDownload(url) {
         </div>
       `;
 
-      // Display all carousel items
+      // Display all carousel items with thumbnails
       carouselHtml += '<div style="margin: 20px 0;">';
       metadata.urls.forEach((mediaUrl, index) => {
         const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
         carouselHtml += `
-          <div class="carousel-item" style="display: flex; gap: 15px; padding: 12px; background: var(--input-bg); border-radius: 12px; margin-bottom: 10px; align-items: center;">
-            <div style="flex: 1;">
-              <p style="margin: 0; font-weight: 600;">${isVideo ? '🎥' : '📷'} Item ${index + 1}</p>
+          <div class="carousel-item" style="display: flex; gap: 12px; padding: 12px; background: var(--input-bg); border-radius: 12px; margin-bottom: 10px; align-items: center;">
+            <img src="${mediaUrl}" alt="Item ${index + 1}" loading="lazy" 
+                 style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; flex-shrink: 0;" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%); border-radius: 8px; display: none; align-items: center; justify-content: center; flex-shrink: 0; font-size: 32px;">
+              ${isVideo ? '🎥' : '📷'}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <p style="margin: 0; font-weight: 600; font-size: 14px;">${isVideo ? '🎥' : '📷'} Item ${index + 1}</p>
               <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-secondary);">${isVideo ? 'Video' : 'Foto'}</p>
             </div>
-            <button class="dl-carousel-item" data-url="${mediaUrl}" data-index="${index}" style="padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">📥 Download</button>
+            <button class="dl-carousel-item" data-url="${mediaUrl}" data-index="${index}" style="padding: 10px 18px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; white-space: nowrap; flex-shrink: 0;">📥 Download</button>
           </div>
         `;
       });
@@ -644,18 +650,53 @@ async function download(url, format, platform) {
   }
 }
 
-// Download Instagram carousel item directly
+// Download Instagram carousel item directly with force download
 async function downloadCarouselItem(mediaUrl, index) {
   const popup = document.getElementById('popup');
 
   try {
-    const fileName = `instagram_carousel_${index + 1}_${Date.now()}.${mediaUrl.includes('.mp4') || mediaUrl.includes('video') ? 'mp4' : 'jpg'}`;
+    const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
+    const fileName = `instagram_carousel_${index + 1}_${Date.now()}.${isVideo ? 'mp4' : 'jpg'}`;
 
     popup.textContent = `⏳ Download item ${index + 1}...`;
     popup.className = 'popup show';
     popup.style.background = 'rgba(28, 28, 30, 0.95)';
 
-    await downloadFile(mediaUrl, fileName);
+    // Force download using anchor tag with download attribute
+    const a = document.createElement('a');
+    a.href = mediaUrl;
+    a.download = fileName;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+
+    // Add crossorigin for CORS-enabled resources
+    if (mediaUrl.includes('cdninstagram') || mediaUrl.includes('fbcdn')) {
+      // Try blob download first for Instagram CDN
+      try {
+        const response = await fetch(mediaUrl, { mode: 'cors' });
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        a.href = blobUrl;
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Clean up blob URL after a delay
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+      } catch (corsError) {
+        // Fallback: use direct download attribute (works in some browsers)
+        console.log('CORS blocked, using direct download:', corsError);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } else {
+      // For non-Instagram URLs, use direct download
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
 
     popup.textContent = `✅ Item ${index + 1} selesai!`;
     popup.style.background = '#30D158';
@@ -668,7 +709,7 @@ async function downloadCarouselItem(mediaUrl, index) {
   }
 }
 
-// Download all carousel items sequentially
+// Download all carousel items sequentially with force download
 async function downloadAllCarousel(mediaUrls) {
   const popup = document.getElementById('popup');
 
@@ -680,16 +721,48 @@ async function downloadAllCarousel(mediaUrls) {
 
   for (let i = 0; i < mediaUrls.length; i++) {
     try {
-      const fileName = `instagram_carousel_${i + 1}_${Date.now()}.${mediaUrls[i].includes('.mp4') || mediaUrls[i].includes('video') ? 'mp4' : 'jpg'}`;
+      const isVideo = mediaUrls[i].includes('.mp4') || mediaUrls[i].includes('video');
+      const fileName = `instagram_carousel_${i + 1}_${Date.now() + i}.${isVideo ? 'mp4' : 'jpg'}`;
 
       popup.textContent = `⏳ Download ${i + 1}/${mediaUrls.length}...`;
 
-      await downloadFile(mediaUrls[i], fileName);
+      // Force download using anchor tag
+      const a = document.createElement('a');
+      a.href = mediaUrls[i];
+      a.download = fileName;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+
+      // Try blob download for Instagram CDN
+      if (mediaUrls[i].includes('cdninstagram') || mediaUrls[i].includes('fbcdn')) {
+        try {
+          const response = await fetch(mediaUrls[i], { mode: 'cors' });
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          a.href = blobUrl;
+
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+
+          setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+        } catch (corsError) {
+          console.log(`CORS blocked for item ${i + 1}, using direct download`);
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      } else {
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+
       successCount++;
 
-      // Small delay between downloads to not overwhelm browser
+      // Delay between downloads
       if (i < mediaUrls.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
     } catch (e) {
       console.error(`Failed to download item ${i + 1}:`, e);
