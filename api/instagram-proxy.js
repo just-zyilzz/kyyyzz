@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url } = req.query;
+    const { url, type } = req.query;
 
     if (!url) {
         return res.status(400).json({ success: false, error: 'URL parameter required' });
@@ -33,14 +33,17 @@ module.exports = async (req, res) => {
 
         // Set appropriate headers for download
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Disposition', 'attachment');
         res.setHeader('Cache-Control', 'public, max-age=86400');
+
+        // Use 'inline' for thumbnails/display if requested, otherwise 'attachment'
+        const disposition = type === 'preview' ? 'inline' : 'attachment';
+        res.setHeader('Content-Disposition', disposition);
 
         // Send the file
         res.send(Buffer.from(response.data));
     } catch (error) {
         console.error('Instagram proxy download error:', error.message);
-        res.status(500).json({
+        res.status(502).json({
             success: false,
             error: 'Failed to download media: ' + error.message
         });
