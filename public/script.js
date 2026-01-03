@@ -409,44 +409,53 @@ async function handleUrlDownload(url) {
         </div>
       `;
     } else if (platform === 'Instagram' && metadata.isCarousel && metadata.urls) {
-      // Special display for Instagram carousel
+      // Special display for Instagram carousel with aesthetic UI
       let carouselHtml = `
-        <div class="meta">
-          <p><strong>Platform:</strong> Instagram Carousel</p>
-          ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
-          ${metadata.metadata?.username ? `<p><strong>Author:</strong> @${metadata.metadata.username}</p>` : ''}
-          <p><strong>Items:</strong> ${metadata.carouselCount} foto/video</p>
+        <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+          <p style="margin: 8px 0;"><strong>Platform:</strong> <span style="color: #42a5f5;">Instagram Carousel</span></p>
+          ${metadata.title ? `<p style="margin: 8px 0;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+          ${metadata.metadata?.username ? `<p style="margin: 8px 0;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.metadata.username}</span></p>` : ''}
+          <p style="margin: 8px 0;"><strong>Items:</strong> <span style="color: #42a5f5; font-weight: 600;">${metadata.carouselCount} foto/video</span></p>
         </div>
       `;
 
-      // Display all carousel items with thumbnails using proxy
-      carouselHtml += '<div style="margin: 20px 0;">';
-      metadata.urls.forEach((mediaUrl, index) => {
+      // Display all carousel items (up to 20) with thumbnails using proxy
+      carouselHtml += '<div style="margin: 16px 0; display: flex; flex-direction: column; gap: 12px;">';
+      const itemsToShow = Math.min(metadata.urls.length, 20); // Limit to 20 items
+
+      for (let index = 0; index < itemsToShow; index++) {
+        const mediaUrl = metadata.urls[index];
         const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
         // Use proxy for thumbnail to avoid CORS
         const thumbnailUrl = isVideo ? '' : `/api/instagram-proxy?url=${encodeURIComponent(mediaUrl)}`;
+
         carouselHtml += `
-          <div class="carousel-item" style="display: flex; gap: 12px; padding: 12px; background: var(--input-bg); border-radius: 12px; margin-bottom: 10px; align-items: center;">
+          <div class="carousel-item" style="display: flex; gap: 14px; padding: 14px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px; align-items: center; transition: all 0.2s ease;">
             ${!isVideo ? `<img src="${thumbnailUrl}" alt="Item ${index + 1}" loading="lazy" 
-                 style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; flex-shrink: 0;" 
+                 style="width: 90px; height: 90px; object-fit: cover; border-radius: 10px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(66, 165, 245, 0.2);" 
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
-            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%); border-radius: 8px; ${isVideo ? 'display: flex' : 'display: none'}; align-items: center; justify-content: center; flex-shrink: 0; font-size: 32px;">
+            <div style="width: 90px; height: 90px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.3) 0%, rgba(100, 181, 246, 0.3) 100%); border-radius: 10px; ${isVideo ? 'display: flex' : 'display: none'}; align-items: center; justify-content: center; flex-shrink: 0; font-size: 36px;">
               ${isVideo ? '🎥' : '📷'}
             </div>
-            <div style="flex: 1; min-width: 0;">
-              <p style="margin: 0; font-weight: 600; font-size: 14px;">${isVideo ? '🎥' : '📷'} Item ${index + 1}</p>
-              <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-secondary);">${isVideo ? 'Video' : 'Foto'}</p>
+            <div style="flex: 1; min-width: 0; overflow: hidden;">
+              <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 15px; color: var(--text-primary);">${isVideo ? '🎥' : '📷'} Item ${index + 1}</p>
+              <p style="margin: 0; font-size: 13px; color: var(--text-secondary); opacity: 0.8;">${isVideo ? 'Video' : 'Foto'}</p>
             </div>
-            <button class="dl-carousel-item" data-url="${mediaUrl}" data-index="${index}" style="padding: 10px 18px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; white-space: nowrap; flex-shrink: 0;">📥 Download</button>
+            <button class="dl-carousel-item" data-url="${mediaUrl}" data-index="${index}" style="padding: 12px 20px; background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; white-space: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(66, 165, 245, 0.3); transition: all 0.2s ease; min-width: 110px;">📥 Download</button>
           </div>
         `;
-      });
+      }
       carouselHtml += '</div>';
 
-      // Add Download All button
+      // Show message if more than 20 items
+      if (metadata.urls.length > 20) {
+        carouselHtml += '<p style="text-align: center; color: var(--text-secondary); font-size: 13px; margin: 12px 0;">Menampilkan 20 dari ' + metadata.urls.length + ' items</p>';
+      }
+
+      // Add Download All button with aesthetic styling
       carouselHtml += `
         <div class="download-btns" style="margin-top: 15px;">
-          <button class="dl-all-carousel" data-urls='${JSON.stringify(metadata.urls)}' style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600;">⬇️ Download All (${metadata.carouselCount} items)</button>
+          <button class="dl-all-carousel" data-urls='${JSON.stringify(metadata.urls)}' style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3); transition: all 0.2s ease;">⬇️ Download All (${metadata.carouselCount} items)</button>
         </div>
       `;
 
