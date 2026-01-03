@@ -419,16 +419,18 @@ async function handleUrlDownload(url) {
         </div>
       `;
 
-      // Display all carousel items with thumbnails
+      // Display all carousel items with thumbnails using proxy
       carouselHtml += '<div style="margin: 20px 0;">';
       metadata.urls.forEach((mediaUrl, index) => {
         const isVideo = mediaUrl.includes('.mp4') || mediaUrl.includes('video');
+        // Use proxy for thumbnail to avoid CORS
+        const thumbnailUrl = isVideo ? '' : `/api/instagram-proxy?url=${encodeURIComponent(mediaUrl)}`;
         carouselHtml += `
           <div class="carousel-item" style="display: flex; gap: 12px; padding: 12px; background: var(--input-bg); border-radius: 12px; margin-bottom: 10px; align-items: center;">
-            <img src="${mediaUrl}" alt="Item ${index + 1}" loading="lazy" 
+            ${!isVideo ? `<img src="${thumbnailUrl}" alt="Item ${index + 1}" loading="lazy" 
                  style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; flex-shrink: 0;" 
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%); border-radius: 8px; display: none; align-items: center; justify-content: center; flex-shrink: 0; font-size: 32px;">
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%); border-radius: 8px; ${isVideo ? 'display: flex' : 'display: none'}; align-items: center; justify-content: center; flex-shrink: 0; font-size: 32px;">
               ${isVideo ? '🎥' : '📷'}
             </div>
             <div style="flex: 1; min-width: 0;">
@@ -650,7 +652,7 @@ async function download(url, format, platform) {
   }
 }
 
-// Download Instagram carousel item directly with force download
+// Download Instagram carousel item using proxy
 async function downloadCarouselItem(mediaUrl, index) {
   const popup = document.getElementById('popup');
 
@@ -662,41 +664,16 @@ async function downloadCarouselItem(mediaUrl, index) {
     popup.className = 'popup show';
     popup.style.background = 'rgba(28, 28, 30, 0.95)';
 
-    // Force download using anchor tag with download attribute
+    // Use proxy endpoint to download
+    const proxyUrl = `/api/instagram-proxy?url=${encodeURIComponent(mediaUrl)}`;
+
+    // Create anchor and trigger download
     const a = document.createElement('a');
-    a.href = mediaUrl;
+    a.href = proxyUrl;
     a.download = fileName;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-
-    // Add crossorigin for CORS-enabled resources
-    if (mediaUrl.includes('cdninstagram') || mediaUrl.includes('fbcdn')) {
-      // Try blob download first for Instagram CDN
-      try {
-        const response = await fetch(mediaUrl, { mode: 'cors' });
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        a.href = blobUrl;
-
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        // Clean up blob URL after a delay
-        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
-      } catch (corsError) {
-        // Fallback: use direct download attribute (works in some browsers)
-        console.log('CORS blocked, using direct download:', corsError);
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-    } else {
-      // For non-Instagram URLs, use direct download
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
     popup.textContent = `✅ Item ${index + 1} selesai!`;
     popup.style.background = '#30D158';
@@ -709,7 +686,7 @@ async function downloadCarouselItem(mediaUrl, index) {
   }
 }
 
-// Download all carousel items sequentially with force download
+// Download all carousel items sequentially using proxy
 async function downloadAllCarousel(mediaUrls) {
   const popup = document.getElementById('popup');
 
@@ -726,43 +703,22 @@ async function downloadAllCarousel(mediaUrls) {
 
       popup.textContent = `⏳ Download ${i + 1}/${mediaUrls.length}...`;
 
-      // Force download using anchor tag
+      // Use proxy endpoint to download
+      const proxyUrl = `/api/instagram-proxy?url=${encodeURIComponent(mediaUrls[i])}`;
+
+      // Create anchor and trigger download
       const a = document.createElement('a');
-      a.href = mediaUrls[i];
+      a.href = proxyUrl;
       a.download = fileName;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-
-      // Try blob download for Instagram CDN
-      if (mediaUrls[i].includes('cdninstagram') || mediaUrls[i].includes('fbcdn')) {
-        try {
-          const response = await fetch(mediaUrls[i], { mode: 'cors' });
-          const blob = await response.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          a.href = blobUrl;
-
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-
-          setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
-        } catch (corsError) {
-          console.log(`CORS blocked for item ${i + 1}, using direct download`);
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }
-      } else {
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
       successCount++;
 
       // Delay between downloads
       if (i < mediaUrls.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     } catch (e) {
       console.error(`Failed to download item ${i + 1}:`, e);
