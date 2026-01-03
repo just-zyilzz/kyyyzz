@@ -421,7 +421,11 @@ async function handleUrlDownload(url) {
 
       // Display carousel items (up to 12) with thumbnails using proxy
       carouselHtml += '<div style="margin: 16px 0; display: flex; flex-direction: column; gap: 12px;">';
-      const itemsToShow = Math.min(metadata.urls.length, 12); // Limit to 12 items
+
+      // Hitung jumlah item (Max 12)
+      // LOOPING AUTOMATICALLY: Code ini akan diulang sebanyak item yg ada
+      const itemsToShow = Math.min(metadata.urls.length, 12);
+      console.log(`[Carousel] Found ${metadata.urls.length} items, showing ${itemsToShow}`);
 
       for (let index = 0; index < itemsToShow; index++) {
         const mediaUrl = metadata.urls[index];
