@@ -10,42 +10,47 @@
 /* ===== LIGHT MODE (Default) ===== */
 :root {
   --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-bg: rgba(255, 255, 255, 0.1);
   --glass-border: rgba(255, 255, 255, 0.3);
   --primary-gradient: linear-gradient(135deg, #667eea, #764ba2);
   --text-primary: #1a1a1a;
-  --text-secondary: rgba(0, 0, 0, 0.6);
-  --input-bg: rgba(255, 255, 255, 0.5);
-  --input-border: rgba(0, 0, 0, 0.1);
-  --button-shadow: rgba(102, 126, 234, 0.3);
-  --result-bg: rgba(255, 255, 255, 0.6);
+  --text-secondary: rgba(0, 0, 0, 0.75);
+  --input-bg: rgba(255, 255, 255, 0.1);
+  --input-border: rgba(255, 255, 255, 0.3);
+  --button-shadow: rgba(102, 126, 234, 0.4);
+  --result-bg: rgba(255, 255, 255, 0.1);
   --blob-color-1: rgba(102, 126, 234, 0.3);
   --blob-color-2: rgba(118, 75, 162, 0.3);
-  --radius-lg: 24px;
-  --radius-md: 16px;
-  --radius-sm: 12px;
-  --blur-amt: 12px;
+  --radius-lg: 28px;
+  --radius-md: 20px;
+  --radius-sm: 14px;
+  --blur-amt: 20px;
 }
 
 /* ===== DARK MODE (iOS 26 Liquid Glass) ===== */
 body.dark {
   --bg-gradient: radial-gradient(circle at 20% 20%, #0a0e27 0%, #000000 50%, #0a0614 100%);
-  --glass-bg: rgba(20, 20, 30, 0.5);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
   --primary-gradient: linear-gradient(135deg, #0A84FF, #5E5CE6);
   --text-primary: #FFFFFF;
-  --text-secondary: rgba(235, 235, 245, 0.6);
-  --input-bg: rgba(118, 118, 128, 0.18);
+  --text-secondary: rgba(235, 235, 245, 0.8);
+  --input-bg: rgba(255, 255, 255, 0.05);
   --input-border: rgba(255, 255, 255, 0.1);
   --button-shadow: rgba(10, 132, 255, 0.5);
-  --result-bg: rgba(255, 255, 255, 0.03);
+  --result-bg: rgba(255, 255, 255, 0.05);
   --blob-color-1: rgba(10, 132, 255, 0.4);
   --blob-color-2: rgba(94, 92, 230, 0.4);
-  --blur-amt: 15px;
+  --blur-amt: 20px;
 }
 
 body {
   background: var(--bg-gradient);
+  background-image: url('./images/snoopy-white.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
@@ -54,6 +59,28 @@ body {
   overflow-x: hidden;
   position: relative;
   transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark mode background */
+body.dark {
+  background-image: url('./images/snoopy-dark.jpg');
+}
+
+/* Overlay untuk meningkatkan kontras */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(50, 50, 50, 0.05);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body.dark::after {
+  background: rgba(52, 52, 52, 0.3);
 }
 
 /* ===== ANIMATED LIQUID BLOBS =====  */
@@ -109,17 +136,24 @@ body.dark::after {
   width: 90%;
   max-width: 600px;
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--blur-amt)) saturate(150%);
-  -webkit-backdrop-filter: blur(var(--blur-amt)) saturate(150%);
-  border: 1.5px solid var(--glass-border);
+  backdrop-filter: blur(var(--blur-amt)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur-amt)) saturate(180%);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: 40px;
   box-shadow:
-    0 15px 40px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+
+body.dark .container {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 /* Container inner glow (top highlight) */
@@ -225,8 +259,18 @@ body.dark h1 {
 div[style*="background:#e0e0ff"] {
   background: var(--input-bg) !important;
   border: 1px solid var(--input-border) !important;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   transition: all 0.3s ease;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body.dark div[style*="background:#e0e0ff"] {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 /* ===== INPUT GROUP ===== */
@@ -242,13 +286,23 @@ input[type="text"] {
   width: 100%;
   padding: 18px 22px;
   border-radius: var(--radius-md);
-  border: 1.5px solid var(--input-border);
+  border: 1px solid var(--input-border);
   background: var(--input-bg);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body.dark input[type="text"] {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 input[type="text"]:focus {
@@ -350,12 +404,21 @@ body.dark .spinner {
   display: none;
   margin-top: 30px;
   background: var(--result-bg);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: var(--radius-md);
   padding: 25px;
   border: 1px solid var(--glass-border);
   animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body.dark .result {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes slideUp {
@@ -401,11 +464,23 @@ body.dark .spinner {
 
 .dl-video,
 .dl-audio {
-  background: rgba(10, 132, 255, 0.15);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 132, 255, 0.1);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   color: var(--text-primary);
   border: 1px solid rgba(10, 132, 255, 0.3);
   font-weight: 600;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 8px 32px rgba(10, 132, 255, 0.1);
+}
+
+body.dark .dl-video,
+body.dark .dl-audio {
+  background: rgba(10, 132, 255, 0.08);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .dl-video:hover,
@@ -492,7 +567,8 @@ body.dark .dl-audio {
   height: 48px;
   border-radius: 50%;
   background: var(--input-bg);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -500,6 +576,15 @@ body.dark .dl-audio {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid var(--input-border);
   text-decoration: none;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body.dark .social-btn {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .social-btn:hover {
@@ -530,13 +615,23 @@ body.dark .dl-audio {
 
 .theme-toggle {
   background: var(--input-bg);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   font-size: 1.3rem;
   padding: 10px 14px;
   border-radius: 50%;
   width: auto;
   border: 1px solid var(--input-border);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body.dark .theme-toggle {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .theme-toggle:hover {
