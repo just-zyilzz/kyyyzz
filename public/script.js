@@ -576,7 +576,7 @@ async function download(url, format, platform) {
   const popup = document.getElementById('popup');
 
   // Show loading
-  popup.textContent = '⏳ Sedang memproses...';
+  popup.textContent = '⏳ Downloading...';
   popup.className = 'popup show';
   popup.style.background = 'rgba(28, 28, 30, 0.95)';
 
@@ -628,15 +628,15 @@ async function download(url, format, platform) {
       }
 
       if (downloadUrl) {
-        popup.textContent = '⏳ Memulai download...';
+        popup.textContent = '⏳ Starting...';
 
         // Try to download file
         const downloaded = await downloadFile(downloadUrl, fileName);
 
         if (downloaded) {
-          popup.textContent = '✅ Download selesai!';
+          popup.textContent = '✅ Done!';
         } else {
-          popup.textContent = '✅ File dibuka di tab baru!';
+          popup.textContent = '✅ Opened!';
         }
 
         popup.className = 'popup show';
@@ -650,7 +650,7 @@ async function download(url, format, platform) {
     }
   } catch (e) {
     console.error('Download error:', e);
-    popup.textContent = '❌ Error: ' + e.message;
+    popup.textContent = '❌ Failed!';
     popup.className = 'popup show';
     popup.style.background = '#FF453A';
     setTimeout(() => {
