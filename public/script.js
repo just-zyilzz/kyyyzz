@@ -43,33 +43,36 @@ function initTheme() {
   }
 }
 
-// ===== QUICK SEARCH BUTTONS =====
+// ===== SEARCH TYPE TOGGLE BUTTON =====
 let currentSearchType = 'youtube'; // Default to YouTube
 
-// Initialize quick search buttons
+// Initialize toggle button
 document.addEventListener('DOMContentLoaded', () => {
-  const quickButtons = document.querySelectorAll('.quick-btn');
+  const toggleBtn = document.getElementById('searchTypeToggle');
+  const urlInput = document.getElementById('urlInput');
 
-  quickButtons.forEach(btn => {
-    btn.addEventListener('click', function () {
-      // Remove active class from all buttons
-      quickButtons.forEach(b => b.classList.remove('active'));
-
-      // Add active class to clicked button
-      this.classList.add('active');
-
-      // Update current search type
-      currentSearchType = this.dataset.type;
-
-      // Update placeholder text
-      const urlInput = document.getElementById('urlInput');
-      if (currentSearchType === 'pinterest') {
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function () {
+      // Toggle between youtube and pinterest
+      if (currentSearchType === 'youtube') {
+        currentSearchType = 'pinterest';
+        this.textContent = '/pin';
+        this.dataset.type = 'pinterest';
         urlInput.placeholder = 'Search Pinterest images or paste Pinterest pin URL...';
       } else {
+        currentSearchType = 'youtube';
+        this.textContent = '/yt';
+        this.dataset.type = 'youtube';
         urlInput.placeholder = 'Paste YouTube, TikTok, Instagram, or Spotify link...';
       }
+
+      // Animate button (scale down then up)
+      this.style.transform = 'scale(0.9)';
+      setTimeout(() => {
+        this.style.transform = 'scale(1)';
+      }, 150);
     });
-  });
+  }
 });
 
 // Detect if input is URL or keywords
