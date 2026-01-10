@@ -261,7 +261,8 @@ async function handlePinterestSearch(keywords) {
     `;
 
     data.pins.forEach((pin, index) => {
-      const imageUrl = pin.image || '';
+      // Use thumbnail for grid display as it is more reliable than the upgraded HD URL
+      const imageUrl = pin.thumbnail || pin.image || '';
       const title = (pin.title || pin.description || 'Pinterest Image').substring(0, 50);
 
       html += `
