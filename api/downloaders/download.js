@@ -15,15 +15,15 @@
  * Usage: GET/POST /api/download?platform=youtube&url=...
  */
 
-const savetube = require('../lib/savetube');
-const { tiktokDownloaderVideo } = require('../lib/tiktok');
-const Instagram = require('../lib/instagram');
-const { instagramDownload } = require('../lib/scrapers');
-const { getUserFromRequest } = require('../lib/session');
-const { saveDownload } = require('../lib/db');
-const { downloadDouyinVideo } = require('../lib/douyin');
-const { downloadTwitterVideo } = require('../lib/twitter');
-const { getSpotifyMetadata } = require('../lib/spotify');
+const savetube = require('../../lib/savetube');
+const { tiktokDownloaderVideo } = require('../../lib/tiktok');
+const Instagram = require('../../lib/instagram');
+const { instagramDownload } = require('../../lib/scrapers');
+const { getUserFromRequest } = require('../../lib/session');
+const { saveDownload } = require('../../lib/db');
+const { downloadDouyinVideo } = require('../../lib/douyin');
+const { downloadTwitterVideo } = require('../../lib/twitter');
+const { getSpotifyMetadata } = require('../../lib/spotify');
 const ytSearch = require('yt-search');
 const axios = require('axios');
 
