@@ -118,7 +118,7 @@ async function handleTikTok(req, res) {
         return res.status(400).json({ success: false, error: 'URL bukan TikTok' });
     }
 
-    const metadataOnly = req.query.metadata === 'true';
+    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
 
     if (metadataOnly) {
         try {
@@ -261,7 +261,7 @@ async function handleInstagram(req, res) {
         return res.status(400).json({ success: false, error: 'URL bukan Instagram' });
     }
 
-    const metadataOnly = req.query.metadata === 'true';
+    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
     if (metadataOnly) {
         const metadata = await getInstagramMetadata(url);
         return res.json(metadata);
@@ -338,7 +338,7 @@ async function handleDouyin(req, res) {
         return res.status(400).json({ success: false, error: 'URL bukan Douyin' });
     }
 
-    const metadataOnly = req.query.metadata === 'true';
+    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
 
     if (metadataOnly) {
         try {
@@ -401,7 +401,7 @@ async function handleTwitter(req, res) {
         return res.status(400).json({ success: false, error: 'URL bukan Twitter/X' });
     }
 
-    const metadataOnly = req.query.metadata === 'true';
+    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
 
     if (metadataOnly) {
         try {
