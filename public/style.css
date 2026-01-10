@@ -246,13 +246,14 @@ body.dark .glass-blob {
 /* ===== SEARCH TYPE TOGGLE BUTTON ===== */
 .search-type-toggle {
   position: absolute;
-  left: 12px;
-  top: 12px;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 10;
-  padding: 6px 14px;
-  font-size: 0.8rem;
+  padding: 4px 12px;
+  font-size: 0.75rem;
   font-weight: 700;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid rgba(10, 132, 255, 0.4);
   background: linear-gradient(135deg, rgba(10, 132, 255, 0.25) 0%, rgba(94, 92, 230, 0.25) 100%);
   backdrop-filter: blur(20px) saturate(180%);
@@ -262,25 +263,26 @@ body.dark .glass-blob {
   transition: all var(--duration-normal) var(--ease-smooth);
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.2),
-    0 4px 12px rgba(10, 132, 255, 0.25);
+    0 2px 8px rgba(10, 132, 255, 0.2);
   font-family: 'Monaco', 'Courier New', monospace;
   user-select: none;
   width: auto;
-  min-width: 50px;
+  min-width: 45px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .search-type-toggle:hover {
-  transform: scale(1.08);
+  transform: translateY(-50%) scale(1.05);
   border-color: rgba(10, 132, 255, 0.6);
-  box-shadow: 0 6px 16px rgba(10, 132, 255, 0.35);
+  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
   background: linear-gradient(135deg, rgba(10, 132, 255, 0.35) 0%, rgba(94, 92, 230, 0.35) 100%);
 }
 
 .search-type-toggle:active {
-  transform: scale(0.95);
+  transform: translateY(-50%) scale(0.95);
   transition: all var(--duration-fast) var(--ease-out);
 }
 
@@ -289,7 +291,7 @@ body.dark .search-type-toggle {
   background: linear-gradient(135deg, rgba(10, 132, 255, 0.3) 0%, rgba(94, 92, 230, 0.3) 100%);
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.15),
-    0 4px 12px rgba(10, 132, 255, 0.3);
+    0 2px 8px rgba(10, 132, 255, 0.25);
 }
 
 body.dark .search-type-toggle:hover {
@@ -300,11 +302,11 @@ body.dark .search-type-toggle:hover {
 /* Mobile responsive */
 @media (max-width: 480px) {
   .search-type-toggle {
-    left: 10px;
-    top: 10px;
-    padding: 5px 12px;
+    left: 12px;
+    padding: 3px 10px;
     font-size: 0.7rem;
-    min-width: 45px;
+    min-width: 40px;
+    height: 24px;
   }
 }
 
