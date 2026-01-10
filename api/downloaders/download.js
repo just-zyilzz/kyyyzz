@@ -125,8 +125,7 @@ async function handleTikTok(req, res) {
             const result = await tiktokDownloaderVideo(url);
             if (result.status) {
                 const isPhotoSlides = result.data && result.data.length > 0 && result.data[0].type === 'photo';
-                const thumbnailUrl = result.cover ?
-                    `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(result.cover)}&type=thumbnail` : null;
+                const thumbnailUrl = result.cover || null;
 
                 return res.json({
                     success: true,
