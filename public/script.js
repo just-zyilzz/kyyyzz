@@ -285,10 +285,10 @@ async function handleUrlDownload(url) {
   } else if (platform === 'Instagram') {
     try {
       // Increased timeout to 15 seconds for better reliability
-      const res = await fetchWithRetry('/api/downloaders/download?platform=instagram&metadata=true', {
+      const res = await fetchWithRetry('/api/downloaders/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ platform: 'instagram', url, metadata: true })
       }, 2, 15000); // 15 second timeout
       metadata = await res.json();
 
@@ -296,10 +296,10 @@ async function handleUrlDownload(url) {
       if (metadata.success && !metadata.isCarousel) {
         // Try to get full carousel data
         try {
-          const fullRes = await fetchWithRetry('/api/downloaders/download?platform=instagram', {
+          const fullRes = await fetchWithRetry('/api/downloaders/download', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({ platform: 'instagram', url })
           }, 2, 20000);
           const fullData = await fullRes.json();
           if (fullData.success && fullData.isCarousel) {
@@ -316,10 +316,10 @@ async function handleUrlDownload(url) {
   } else if (platform === 'Douyin') {
     try {
       // Increased timeout to 25 seconds for Douyin API
-      const res = await fetchWithRetry('/api/downloaders/download?platform=douyin&metadata=true', {
+      const res = await fetchWithRetry('/api/downloaders/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ platform: 'douyin', url, metadata: true })
       }, 3, 25000); // 3 retries, 25 second timeout
       metadata = await res.json();
     } catch (error) {
@@ -329,10 +329,10 @@ async function handleUrlDownload(url) {
   } else if (platform === 'Spotify') {
     // Spotify - resolve to YouTube URL via bridge
     try {
-      const res = await fetchWithRetry('/api/downloaders/download?platform=spotify', {
+      const res = await fetchWithRetry('/api/downloaders/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ platform: 'spotify', url })
       }, 1, 6000);
       const data = await res.json();
 
@@ -624,17 +624,21 @@ async function download(url, format, platform) {
     let endpoint;
     let body = { url };
 
-    // Determine endpoint based on platform and format
+    // Determine endpoint and body based on platform and format
     if (platform === 'YouTube') {
-      endpoint = format === 'audio' ? '/api/downloaders/download?platform=youtube-audio' : '/api/downloaders/download?platform=youtube';
+      endpoint = '/api/downloaders/download';
+      body.platform = format === 'audio' ? 'youtube-audio' : 'youtube';
     } else if (platform === 'TikTok') {
-      endpoint = '/api/downloaders/download?platform=tiktok';
+      endpoint = '/api/downloaders/download';
+      body.platform = 'tiktok';
       body.format = format;
     } else if (platform === 'Douyin') {
-      endpoint = '/api/downloaders/download?platform=douyin';
+      endpoint = '/api/downloaders/download';
+      body.platform = 'douyin';
       body.format = format;
     } else if (platform === 'Instagram') {
-      endpoint = '/api/downloaders/download?platform=instagram';
+      endpoint = '/api/downloaders/download';
+      body.platform = 'instagram';
     } else {
       throw new Error('Platform tidak didukung');
     }
@@ -782,10 +786,10 @@ async function downloadTikTokPhotos(url) {
     popup.className = 'popup show popup-loading';
 
     // Get photo URLs from API
-    const res = await fetch('/api/downloaders/download?platform=tiktok', {
+    const res = await fetch('/api/downloaders/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ platform: 'tiktok', url })
     });
 
     if (!res.ok) {
