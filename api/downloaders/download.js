@@ -11,6 +11,7 @@
  * - douyin (Douyin videos)
  * - twitter (Twitter/X videos)
  * - spotify (Spotify tracks)
+ * - pinterest (Pinterest images/videos)
  * 
  * Usage: GET/POST /api/download?platform=youtube&url=...
  */
@@ -24,6 +25,7 @@ const { saveDownload } = require('../../lib/db');
 const { downloadDouyinVideo } = require('../../lib/douyin');
 const { downloadTwitterVideo } = require('../../lib/twitter');
 const { getSpotifyMetadata } = require('../../lib/spotify');
+const { savePin } = require('../../lib/pinterest');
 const ytSearch = require('yt-search');
 const axios = require('axios');
 
@@ -497,6 +499,76 @@ async function handleSpotify(req, res) {
     }
 }
 
+// ======================== PINTEREST ========================
+async function handlePinterest(req, res) {
+    const url = req.method === 'POST' ? req.body.url : req.query.url;
+
+    if (!url) {
+        return res.status(400).json({ success: false, error: 'URL tidak boleh kosong' });
+    }
+
+    const lowerUrl = url.toLowerCase();
+    if (!lowerUrl.includes('pinterest.com') && !lowerUrl.includes('pin.it')) {
+        return res.status(400).json({ success: false, error: 'URL bukan Pinterest' });
+    }
+
+    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
+
+    if (metadataOnly) {
+        try {
+            const result = await savePin(url);
+            if (result.success && result.results && result.results.length > 0) {
+                // Get first image/video as thumbnail
+                const firstMedia = result.results[0];
+                return res.json({
+                    success: true,
+                    title: result.title,
+                    thumbnail: firstMedia.downloadLink,
+                    platform: 'Pinterest',
+                    mediaType: firstMedia.type,
+                    format: firstMedia.format
+                });
+            } else {
+                return res.json({ success: true, title: 'Pinterest Pin', thumbnail: null, platform: 'Pinterest' });
+            }
+        } catch (error) {
+            return res.json({ success: true, title: 'Pinterest Pin', thumbnail: null, platform: 'Pinterest' });
+        }
+    }
+
+    try {
+        const result = await savePin(url);
+
+        if (!result.success || !result.results || result.results.length === 0) {
+            return res.status(500).json({
+                success: false,
+                error: result.error || 'Gagal mengambil data dari Pinterest'
+            });
+        }
+
+        // Return the first/best quality result
+        const bestResult = result.results[0];
+        const isVideo = bestResult.type.toLowerCase().includes('video') || bestResult.format.toLowerCase() === 'mp4';
+        const extension = isVideo ? '.mp4' : '.jpg';
+        const fileName = `pinterest_${Date.now()}${extension}`;
+
+        res.json({
+            success: true,
+            title: result.title,
+            downloadUrl: bestResult.downloadLink,
+            fileName: fileName,
+            mediaType: bestResult.type,
+            format: bestResult.format,
+            allResults: result.results, // All available qualities/formats
+            platform: 'Pinterest'
+        });
+    } catch (error) {
+        console.error('❌ Pinterest download error:', error.message);
+        res.status(500).json({ success: false, error: 'Download gagal. Coba lagi' });
+    }
+}
+
+
 // ======================== MAIN HANDLER ========================
 module.exports = async (req, res) => {
     // Allow both GET and POST
@@ -523,10 +595,12 @@ module.exports = async (req, res) => {
             return handleTwitter(req, res);
         case 'spotify':
             return handleSpotify(req, res);
+        case 'pinterest':
+            return handlePinterest(req, res);
         default:
             return res.status(400).json({
                 success: false,
-                error: 'Platform tidak valid. Gunakan: youtube, youtube-audio, tiktok, instagram, douyin, twitter, spotify'
+                error: 'Platform tidak valid. Gunakan: youtube, youtube-audio, tiktok, instagram, douyin, twitter, spotify, pinterest'
             });
     }
 };

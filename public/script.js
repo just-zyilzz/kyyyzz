@@ -43,6 +43,35 @@ function initTheme() {
   }
 }
 
+// ===== QUICK SEARCH BUTTONS =====
+let currentSearchType = 'youtube'; // Default to YouTube
+
+// Initialize quick search buttons
+document.addEventListener('DOMContentLoaded', () => {
+  const quickButtons = document.querySelectorAll('.quick-btn');
+
+  quickButtons.forEach(btn => {
+    btn.addEventListener('click', function () {
+      // Remove active class from all buttons
+      quickButtons.forEach(b => b.classList.remove('active'));
+
+      // Add active class to clicked button
+      this.classList.add('active');
+
+      // Update current search type
+      currentSearchType = this.dataset.type;
+
+      // Update placeholder text
+      const urlInput = document.getElementById('urlInput');
+      if (currentSearchType === 'pinterest') {
+        urlInput.placeholder = 'Search Pinterest images or paste Pinterest pin URL...';
+      } else {
+        urlInput.placeholder = 'Paste YouTube, TikTok, Instagram, or Spotify link...';
+      }
+    });
+  });
+});
+
 // Detect if input is URL or keywords
 function isUrl(text) {
   try {
@@ -55,7 +84,9 @@ function isUrl(text) {
       text.includes('instagram.com') ||
       text.includes('spotify.com') ||
       text.includes('douyin.com') ||
-      text.includes('v.douyin.com');
+      text.includes('v.douyin.com') ||
+      text.includes('pinterest.com') ||
+      text.includes('pin.it');
   }
 }
 
@@ -73,6 +104,7 @@ function detectPlatform(url) {
   if (lowerUrl.includes('douyin.com') || lowerUrl.includes('v.douyin.com')) return 'Douyin';
   if (lowerUrl.includes('instagram.com')) return 'Instagram';
   if (lowerUrl.includes('spotify.com/track')) return 'Spotify';
+  if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it')) return 'Pinterest';
   return 'Unknown';
 }
 
@@ -110,8 +142,12 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
       // Handle as URL
       await handleUrlDownload(input);
     } else {
-      // Handle as YouTube search
-      await handleYouTubeSearch(input);
+      // Handle as search - route based on currentSearchType
+      if (currentSearchType === 'pinterest') {
+        await handlePinterestSearch(input);
+      } else {
+        await handleYouTubeSearch(input);
+      }
     }
   } catch (e) {
     console.error('Fetch error:', e);
@@ -188,6 +224,115 @@ async function handleYouTubeSearch(keywords) {
   } catch (error) {
     console.error('YouTube search error:', error);
     throw error;
+  }
+}
+
+// Handle Pinterest search
+async function handlePinterestSearch(keywords) {
+  try {
+    const res = await fetch('/api/utils/utility', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'pinterest-search', query: keywords, limit: 20 })
+    });
+
+    if (!res.ok) {
+      throw new Error('Gagal mencari gambar Pinterest: ' + res.statusText);
+    }
+
+    const data = await res.json();
+
+    // Check for valid results
+    if (!data.success || !data.pins || !Array.isArray(data.pins) || data.pins.length === 0) {
+      throw new Error('Tidak ada hasil ditemukan di Pinterest');
+    }
+
+    // Display Pinterest search results in grid
+    const resultDiv = document.querySelector('.result');
+    let html = `
+      <h3 style="margin-bottom: 20px;">📌 Hasil Pinterest: "${keywords}"</h3>
+      <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 0.9rem;">
+        Ditemukan ${data.count} gambar. Klik untuk download.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 20px;">
+    `;
+
+    data.pins.forEach((pin, index) => {
+      const imageUrl = pin.image || '';
+      const title = (pin.title || pin.description || 'Pinterest Image').substring(0, 50);
+
+      html += `
+        <div class="pinterest-result-item" 
+             data-pin-url="${pin.url || ''}" 
+             data-pin-title="${title}"
+             style="position: relative; cursor: pointer; border-radius: 12px; overflow: hidden; background: var(--input-bg); transition: all 0.3s ease; border: 1px solid var(--input-border);">
+          ${imageUrl ? `
+            <img src="${imageUrl}" 
+                 alt="${title}" 
+                 loading="lazy" 
+                 style="width: 100%; height: 180px; object-fit: cover; display: block;">
+          ` : `
+            <div style="width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%);">
+              <span style="font-size: 48px;">📌</span>
+            </div>
+          `}
+          <div style="padding: 10px; background: var(--result-bg); backdrop-filter: blur(10px);">
+            <p style="margin: 0; font-size: 0.75rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${title}</p>
+          </div>
+        </div>
+      `;
+    });
+
+    html += `</div>`;
+
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = 'block';
+
+    // Add hover effects and click handlers to Pinterest results
+    document.querySelectorAll('.pinterest-result-item').forEach(item => {
+      // Hover effect
+      item.addEventListener('mouseenter', function () {
+        this.style.transform = 'translateY(-4px) scale(1.02)';
+        this.style.boxShadow = '0 8px 24px rgba(230, 0, 35, 0.3)';
+        this.style.borderColor = 'rgba(230, 0, 35, 0.4)';
+      });
+
+      item.addEventListener('mouseleave', function () {
+        this.style.transform = 'translateY(0) scale(1)';
+        this.style.boxShadow = 'none';
+        this.style.borderColor = 'var(--input-border)';
+      });
+
+      // Click handler - download Pinterest pin
+      item.addEventListener('click', function () {
+        const pinUrl = this.getAttribute('data-pin-url');
+        const pinTitle = this.getAttribute('data-pin-title');
+
+        if (pinUrl) {
+          selectPinterestPin(pinUrl, pinTitle);
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Pinterest search error:', error);
+    throw error;
+  }
+}
+
+// Select Pinterest pin from search results
+async function selectPinterestPin(url, title) {
+  document.getElementById('urlInput').value = url;
+
+  // Show loading
+  document.querySelector('.loading').style.display = 'block';
+  document.querySelector('.result').style.display = 'none';
+
+  try {
+    await handleUrlDownload(url);
+  } catch (e) {
+    showPopup('❌ Error: ' + e.message, 'error');
+  } finally {
+    document.querySelector('.loading').style.display = 'none';
   }
 }
 
@@ -365,6 +510,17 @@ async function handleUrlDownload(url) {
       console.error('Twitter metadata error:', error.message);
       metadata = { success: true, title: 'Twitter Video', platform: 'Twitter', thumbnail: null };
     }
+  } else if (platform === 'Pinterest') {
+    // Pinterest - get pin metadata
+    try {
+      const res = await fetchWithRetry(`/api/downloaders/download?platform=pinterest&url=${encodeURIComponent(url)}&metadata=true`, {
+        method: 'GET'
+      }, 2, 10000);
+      metadata = await res.json();
+    } catch (error) {
+      console.error('Pinterest metadata error:', error.message);
+      metadata = { success: true, title: 'Pinterest Pin', platform: 'Pinterest', thumbnail: null };
+    }
   }
 
   // FIX: Improved error handling for different API response formats
@@ -490,9 +646,10 @@ async function handleUrlDownload(url) {
             ${metadata.author ? `<p><strong>Author:</strong> ${metadata.author}</p>` : ''}
             ${metadata.duration ? `<p><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
             ${metadata.stats ? `<p><strong>Views:</strong> ${metadata.stats.views} | <strong>Likes:</strong> ${metadata.stats.likes}</p>` : ''}
+            ${metadata.mediaType ? `<p><strong>Type:</strong> ${metadata.mediaType}</p>` : ''}
           </div>
           <div class="download-btns">
-            <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
+            ${platform === 'Pinterest' ? `<button class="dl-image" data-url="${url}" data-platform="${platform}">📥 Download ${metadata.mediaType || 'Media'}</button>` : `<button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>`}
             ${platform === 'YouTube' || platform === 'TikTok' || platform === 'Douyin' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
             ${platform === 'Twitter' && metadata.qualities && metadata.qualities.length > 1 ? `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">📊 ${metadata.qualities.length} qualities available</p>` : ''}
           </div>
@@ -552,9 +709,10 @@ async function handleUrlDownload(url) {
       }
     } else {
       // Standard handlers
-      document.querySelectorAll('.dl-video, .dl-audio').forEach(btn => {
+      document.querySelectorAll('.dl-video, .dl-audio, .dl-image').forEach(btn => {
         btn.onclick = (e) => {
-          const format = e.target.classList.contains('dl-audio') ? 'audio' : 'video';
+          const format = e.target.classList.contains('dl-audio') ? 'audio' :
+            e.target.classList.contains('dl-image') ? 'image' : 'video';
           const platform = e.target.dataset.platform;
           download(e.target.dataset.url, format, platform);
         };
@@ -639,6 +797,9 @@ async function download(url, format, platform) {
     } else if (platform === 'Instagram') {
       endpoint = '/api/downloaders/download';
       body.platform = 'instagram';
+    } else if (platform === 'Pinterest') {
+      endpoint = '/api/downloaders/download';
+      body.platform = 'pinterest';
     } else {
       throw new Error('Platform tidak didukung');
     }

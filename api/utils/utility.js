@@ -6,14 +6,17 @@
  * Supported actions:
  * - search (YouTube search)
  * - thumbnail (Get video thumbnail)
+ * - pinterest-search (Pinterest image search)
  * - tiktok-proxy (TikTok media proxy for CORS)
  * - instagram-proxy (Instagram media proxy for CORS)
  * 
  * Usage: GET/POST /api/utility?action=search&query=...
  */
 
+
 const ytSearch = require('yt-search');
 const axios = require('axios');
+const { searchPinterest } = require('../../lib/pinterest');
 
 // ======================== YOUTUBE SEARCH ========================
 async function handleSearch(req, res) {
@@ -244,6 +247,46 @@ async function handleInstagramProxy(req, res) {
     }
 }
 
+// ======================== PINTEREST SEARCH ========================
+async function handlePinterestSearch(req, res) {
+    const query = req.method === 'POST'
+        ? req.body.query || req.body.q || req.body.keyword
+        : req.query.query || req.query.q || req.query.keyword;
+
+    const limit = parseInt(req.body?.limit || req.query?.limit || 20);
+
+    if (!query) {
+        return res.status(400).json({ success: false, error: 'Query parameter required' });
+    }
+
+    try {
+        const result = await searchPinterest(query, limit);
+
+        if (!result.success) {
+            return res.status(500).json({
+                success: false,
+                error: result.error || 'Pinterest search failed'
+            });
+        }
+
+        res.json({
+            success: true,
+            keyword: query,
+            count: result.count,
+            pins: result.pins.map(pin => ({
+                url: pin.url,
+                title: pin.title,
+                image: pin.image,
+                description: pin.description
+            }))
+        });
+    } catch (error) {
+        console.error('❌ Pinterest search error:', error.message);
+        res.status(500).json({ success: false, error: 'Pinterest search failed: ' + error.message });
+    }
+}
+
+
 // ======================== MAIN HANDLER ========================
 module.exports = async (req, res) => {
     // Allow both GET and POST (except proxies which are GET only)
@@ -260,6 +303,8 @@ module.exports = async (req, res) => {
             return handleSearch(req, res);
         case 'thumbnail':
             return handleThumbnail(req, res);
+        case 'pinterest-search':
+            return handlePinterestSearch(req, res);
         case 'tiktok-proxy':
             if (req.method !== 'GET') {
                 return res.status(405).json({ success: false, error: 'Proxy endpoints only support GET' });
@@ -273,7 +318,7 @@ module.exports = async (req, res) => {
         default:
             return res.status(400).json({
                 success: false,
-                error: 'Action tidak valid. Gunakan: search, thumbnail, tiktok-proxy, instagram-proxy'
+                error: 'Action tidak valid. Gunakan: search, thumbnail, pinterest-search, tiktok-proxy, instagram-proxy'
             });
     }
 };
