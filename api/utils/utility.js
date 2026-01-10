@@ -277,6 +277,7 @@ async function handlePinterestSearch(req, res) {
                 url: pin.url,
                 title: pin.title,
                 image: pin.image,
+                thumbnail: pin.thumbnail,
                 description: pin.description
             }))
         });

@@ -524,6 +524,7 @@ async function handlePinterest(req, res) {
                     success: true,
                     title: result.title,
                     thumbnail: firstMedia.downloadLink,
+                    downloadUrl: firstMedia.downloadLink,
                     platform: 'Pinterest',
                     mediaType: firstMedia.type,
                     format: firstMedia.format

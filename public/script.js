@@ -274,10 +274,11 @@ async function handlePinterestSearch(keywords) {
             <img src="${imageUrl}" 
                  alt="${title}" 
                  loading="lazy" 
-                 style="width: 100%; height: 180px; object-fit: cover; display: block;">
+                 style="width: 100%; height: 180px; object-fit: cover; display: block;"
+                 onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDUwIDUwtextIHg9IjUwJSIgeT0iNTAlIiBkeT0iLjNlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSI1MCI+8J+MjzwvdGV4dD48L3N2Zz4=';">
           ` : `
             <div style="width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%);">
-              <span style="font-size: 48px;">📌</span>
+              <span style="font-size: 32px;">📌</span>
             </div>
           `}
           <div style="padding: 10px; background: var(--result-bg); backdrop-filter: blur(10px);">
@@ -720,6 +721,17 @@ async function handleUrlDownload(url) {
           const platform = e.target.dataset.platform;
           download(e.target.dataset.url, format, platform);
         };
+        // Auto-trigger download for Pinterest (as requested)
+        if (platform === 'Pinterest' && metadata.downloadUrl) {
+          console.log('📌 Auto-triggering Pinterest download...');
+          // Small delay to ensure UI update is seen first
+          setTimeout(() => {
+            // Trigger the download button click to ensure all logic (like validation) runs
+            const dlBtn = resultDiv.querySelector('.dl-image');
+            if (dlBtn) dlBtn.click();
+          }, 800);
+        }
+
       });
     }
   } else {
