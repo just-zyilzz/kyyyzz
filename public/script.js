@@ -125,10 +125,10 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
 // Handle YouTube search
 async function handleYouTubeSearch(keywords) {
   try {
-    const res = await fetch('/api/utils/utility?action=search', {
+    const res = await fetch('/api/utils/utility', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: keywords, limit: 10, type: 'video' })
+      body: JSON.stringify({ action: 'search', query: keywords, limit: 10, type: 'video' })
     });
 
     if (!res.ok) {
@@ -261,10 +261,10 @@ async function handleUrlDownload(url) {
   // Get metadata based on platform
   if (platform === 'YouTube') {
     try {
-      const res = await fetchWithRetry('/api/utils/utility?action=thumbnail', {
+      const res = await fetchWithRetry('/api/utils/utility', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ action: 'thumbnail', url })
       }, 1, 5000);
       metadata = await res.json();
     } catch (error) {
