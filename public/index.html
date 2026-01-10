@@ -124,16 +124,6 @@
   <div class="container">
     <div class="glass-blob" aria-hidden="true"></div>
 
-    <!-- Quick Search Buttons -->
-    <div class="quick-search-buttons">
-      <button class="quick-btn active" data-type="youtube" title="YouTube Search">
-        /yt
-      </button>
-      <button class="quick-btn" data-type="pinterest" title="Pinterest Search">
-        /pin
-      </button>
-    </div>
-
     <h1>Download Video & Audio - Tools Premium</h1>
 
     <div
@@ -142,6 +132,9 @@
     </div>
 
     <div class="input-group">
+      <button class="search-type-toggle" id="searchTypeToggle" data-type="youtube" title="Click to switch">
+        /yt
+      </button>
       <input type="text" id="urlInput" placeholder="Paste YouTube, TikTok, Instagram, or Spotify link..." />
       <button id="fetchBtn">Download</button>
     </div>

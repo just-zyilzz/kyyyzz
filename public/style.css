@@ -243,102 +243,68 @@ body.dark .glass-blob {
   }
 }
 
-/* ===== QUICK SEARCH BUTTONS ===== */
-.quick-search-buttons {
+/* ===== SEARCH TYPE TOGGLE BUTTON ===== */
+.search-type-toggle {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  display: flex;
-  gap: 8px;
+  left: 12px;
+  top: 12px;
   z-index: 10;
-}
-
-.quick-btn {
-  padding: 8px 16px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border-radius: 12px;
-  border: 1px solid var(--input-border);
-  background: var(--input-bg);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid rgba(10, 132, 255, 0.4);
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.25) 0%, rgba(94, 92, 230, 0.25) 100%);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   transition: all var(--duration-normal) var(--ease-smooth);
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.1),
-    0 4px 12px rgba(0, 0, 0, 0.05);
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 4px 12px rgba(10, 132, 255, 0.25);
+  font-family: 'Monaco', 'Courier New', monospace;
+  user-select: none;
   width: auto;
-  min-width: 60px;
+  min-width: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Monaco', 'Courier New', monospace;
-  position: relative;
-  overflow: hidden;
 }
 
-.quick-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-  transition: left 0.5s ease;
-}
-
-.quick-btn:hover::before {
-  left: 100%;
-}
-
-.quick-btn:hover {
-  transform: translateY(-2px) scale(1.05);
-  border-color: rgba(10, 132, 255, 0.4);
-  box-shadow: 0 6px 16px rgba(10, 132, 255, 0.2);
-}
-
-.quick-btn.active {
-  background: linear-gradient(135deg, rgba(10, 132, 255, 0.2) 0%, rgba(94, 92, 230, 0.2) 100%);
-  border-color: rgba(10, 132, 255, 0.5);
-  color: var(--text-primary);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.2),
-    0 4px 16px rgba(10, 132, 255, 0.3);
-}
-
-body.dark .quick-btn {
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.08),
-    0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-body.dark .quick-btn.active {
-  background: linear-gradient(135deg, rgba(10, 132, 255, 0.25) 0%, rgba(94, 92, 230, 0.25) 100%);
+.search-type-toggle:hover {
+  transform: scale(1.08);
   border-color: rgba(10, 132, 255, 0.6);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.15),
-    0 4px 16px rgba(10, 132, 255, 0.4);
+  box-shadow: 0 6px 16px rgba(10, 132, 255, 0.35);
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.35) 0%, rgba(94, 92, 230, 0.35) 100%);
 }
 
-.quick-btn:active {
+.search-type-toggle:active {
   transform: scale(0.95);
   transition: all var(--duration-fast) var(--ease-out);
 }
 
+body.dark .search-type-toggle {
+  border-color: rgba(10, 132, 255, 0.5);
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.3) 0%, rgba(94, 92, 230, 0.3) 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    0 4px 12px rgba(10, 132, 255, 0.3);
+}
+
+body.dark .search-type-toggle:hover {
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.4) 0%, rgba(94, 92, 230, 0.4) 100%);
+  border-color: rgba(10, 132, 255, 0.7);
+}
+
 /* Mobile responsive */
 @media (max-width: 480px) {
-  .quick-search-buttons {
-    top: 15px;
-    left: 15px;
-    gap: 6px;
-  }
-
-  .quick-btn {
-    padding: 6px 12px;
-    font-size: 0.75rem;
-    min-width: 50px;
+  .search-type-toggle {
+    left: 10px;
+    top: 10px;
+    padding: 5px 12px;
+    font-size: 0.7rem;
+    min-width: 45px;
   }
 }
 
@@ -393,7 +359,8 @@ body.dark div[style*="background:#e0e0ff"] {
 
 input[type="text"] {
   width: 100%;
-  padding: 18px 22px;
+  padding: 18px 22px 18px 85px;
+  /* Extra left padding for toggle button */
   border-radius: var(--radius-md);
   border: 1px solid var(--input-border);
   background: var(--input-bg);
