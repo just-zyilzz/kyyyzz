@@ -647,8 +647,15 @@ async function handleUrlDownload(url) {
       resultDiv.innerHTML = photoSlidesHtml;
     } else {
       // Standard display for other platforms
+      const thumbSrc = (() => {
+        const raw = metadata.thumbnail || metadata.thumbnailUrl || '';
+        if (platform === 'Pinterest' && raw) {
+          return `/api/pinterest-proxy?url=${encodeURIComponent(raw)}`;
+        }
+        return raw;
+      })();
       resultDiv.innerHTML = `
-          ${metadata.thumbnail || metadata.thumbnailUrl ? `<img src="${metadata.thumbnail || metadata.thumbnailUrl}" alt="Thumbnail" loading="lazy" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+          ${thumbSrc ? `<img src="${thumbSrc}" alt="Thumbnail" loading="lazy" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
           <div class="meta">
             <p><strong>Platform:</strong> ${platform}</p>
             ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
@@ -856,29 +863,41 @@ async function download(url, format, platform) {
       const downloadUrl = data.downloadUrl;
       let fileName = data.fileName;
 
-      // Determine file extension
-      const ext = format === 'audio' ? '.mp3' : '.mp4';
-
-      // Ensure fileName has proper extension
-      if (!fileName) {
-        fileName = `download_${Date.now()}${ext}`;
-      } else if (!fileName.toLowerCase().endsWith(ext)) {
-        fileName += ext;
+      if (fileName && fileName.includes('.')) {
+        fileName = fileName;
+      } else {
+        let ext = '.mp4';
+        if (format === 'audio') {
+          ext = '.mp3';
+        } else if (format === 'image' || (data.mediaType && data.mediaType.toLowerCase() === 'image')) {
+          if (data.format && data.format.toLowerCase() === 'png') {
+            ext = '.png';
+          } else {
+            ext = '.jpg';
+          }
+        }
+        if (!fileName) {
+          fileName = `download_${Date.now()}${ext}`;
+        } else if (!fileName.toLowerCase().endsWith(ext)) {
+          fileName += ext;
+        }
       }
 
       if (downloadUrl) {
         popup.textContent = '⏳ Starting...';
 
-        // Prepare proxy URL for known CORS platforms
+        let primaryUrl = downloadUrl;
         let proxyUrl = null;
+
         if (platform === 'TikTok' || platform === 'Douyin') {
-           proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
+          proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
         } else if (platform === 'Instagram') {
-           proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
+          proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
+        } else if (platform === 'Pinterest') {
+          primaryUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
         }
 
-        // Try to download file
-        const downloaded = await downloadFile(downloadUrl, fileName, proxyUrl);
+        const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
 
         if (downloaded) {
           popup.textContent = '✅ Done!';
