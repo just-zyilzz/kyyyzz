@@ -66,11 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
         urlInput.placeholder = 'Paste YouTube, TikTok, Instagram, or Spotify link...';
       }
 
-      // Animate button (scale down then up)
-      this.style.transform = 'scale(0.9)';
-      setTimeout(() => {
-        this.style.transform = 'scale(1)';
-      }, 150);
+      // Animation is handled by CSS :active state
+      // No need for inline transform that conflicts with positioning
     });
   }
 });
@@ -272,20 +269,23 @@ async function handlePinterestSearch(keywords) {
              data-pin-title="${title}"
              style="position: relative; cursor: pointer; border-radius: 16px; overflow: hidden; background: var(--input-bg); transition: all 0.3s ease; border: 1px solid var(--input-border); aspect-ratio: 1;">
           ${proxiedImageUrl ? `
+            <!-- Fallback icon (always visible) -->
+            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%); position: absolute; top: 0; left: 0; z-index: 1;">
+              <span style="font-size: 48px;">📌</span>
+            </div>
+            <!-- Image (fades in on load) -->
             <img src="${proxiedImageUrl}" 
                  alt="${title}" 
                  loading="eager"
-                 style="width: 100%; height: 100%; object-fit: cover; display: block;"
-                 onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div style="width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%); position: absolute; top: 0; left: 0;">
-              <span style="font-size: 48px;">📌</span>
-            </div>
+                 style="width: 100%; height: 100%; object-fit: cover; display: block; position: absolute; top: 0; left: 0; z-index: 2; opacity: 0; transition: opacity 0.3s ease;"
+                 onload="this.style.opacity='1';"
+                 onerror="console.error('Pinterest image failed:', this.src); this.style.display='none';">
           ` : `
             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%);">
               <span style="font-size: 48px;">📌</span>
             </div>
           `}
-          <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); backdrop-filter: blur(10px);">
+          <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); backdrop-filter: blur(10px); z-index: 3;">
             <p style="margin: 0; font-size: 0.8rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${title}</p>
           </div>
         </div>
@@ -733,10 +733,11 @@ async function handleUrlDownload(url) {
 }
 
 // Download file with proper CORS handling
-async function downloadFile(url, filename) {
+async function downloadFile(url, filename, proxyUrl = null) {
   try {
     // Try direct download first (works for same-origin or CORS-enabled URLs)
     const response = await fetch(url);
+    if (!response.ok) throw new Error('Direct fetch failed');
     const blob = await response.blob();
 
     // Create blob URL and trigger download
@@ -751,8 +752,32 @@ async function downloadFile(url, filename) {
 
     return true;
   } catch (e) {
+    console.log('Direct download failed:', e.message);
+
+    // Try proxy if available
+    if (proxyUrl) {
+      try {
+        console.log('Trying proxy download...');
+        const proxyRes = await fetch(proxyUrl);
+        if (!proxyRes.ok) throw new Error('Proxy fetch failed');
+        const blob = await proxyRes.blob();
+        
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+        return true;
+      } catch (e2) {
+        console.log('Proxy download failed:', e2.message);
+      }
+    }
+
     // Fallback: open in new tab (for CORS-blocked URLs)
-    console.log('Direct download failed, opening in new tab:', e.message);
+    console.log('Opening in new tab as fallback');
     window.open(url, '_blank');
     return false;
   }
@@ -771,6 +796,8 @@ function showPopup(message, state = 'loading', duration = 3000) {
     stateClass = 'popup-success';
   } else if (state === 'error') {
     stateClass = 'popup-error';
+    // Show error longer so user can read it
+    if (duration === 3000) duration = 5000;
   }
 
   popup.className = `popup show ${stateClass}`;
@@ -834,7 +861,7 @@ async function download(url, format, platform) {
 
       // Ensure fileName has proper extension
       if (!fileName) {
-        fileName = `download_${Date.now()}${ext} `;
+        fileName = `download_${Date.now()}${ext}`;
       } else if (!fileName.toLowerCase().endsWith(ext)) {
         fileName += ext;
       }
@@ -842,8 +869,16 @@ async function download(url, format, platform) {
       if (downloadUrl) {
         popup.textContent = '⏳ Starting...';
 
+        // Prepare proxy URL for known CORS platforms
+        let proxyUrl = null;
+        if (platform === 'TikTok' || platform === 'Douyin') {
+           proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
+        } else if (platform === 'Instagram') {
+           proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
+        }
+
         // Try to download file
-        const downloaded = await downloadFile(downloadUrl, fileName);
+        const downloaded = await downloadFile(downloadUrl, fileName, proxyUrl);
 
         if (downloaded) {
           popup.textContent = '✅ Done!';
@@ -861,11 +896,11 @@ async function download(url, format, platform) {
     }
   } catch (e) {
     console.error('Download error:', e);
-    popup.textContent = '❌ Failed!';
+    popup.textContent = '❌ ' + (e.message || 'Failed!');
     popup.className = 'popup show popup-error';
     setTimeout(() => {
       popup.classList.remove('show');
-    }, 4000);
+    }, 5000);
   }
 }
 
@@ -981,24 +1016,13 @@ async function downloadTikTokPhotos(url) {
     for (let i = 0; i < photoUrls.length; i++) {
       try {
         const fileName = `tiktok_photo_${i + 1}_${Date.now() + i}.jpg`;
-
         popup.textContent = `⏳ Download ${i + 1}/${photoUrls.length}...`;
 
-        // Fetch as blob for auto-download
-        const response = await fetch(photoUrls[i]);
-        const blob = await response.blob();
+        // Use downloadFile with proxy fallback
+        const proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(photoUrls[i])}&type=image`;
+        const success = await downloadFile(photoUrls[i], fileName, proxyUrl);
 
-        // Create blob URL and trigger download
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl);
-
-        successCount++;
+        if (success) successCount++;
 
         // Delay between downloads
         if (i < photoUrls.length - 1) {

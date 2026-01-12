@@ -250,7 +250,7 @@ body.dark .glass-blob {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  padding: 4px 12px;
+  padding: 4px 0;
   font-size: 0.75rem;
   font-weight: 700;
   border-radius: 8px;
@@ -266,12 +266,12 @@ body.dark .glass-blob {
     0 2px 8px rgba(10, 132, 255, 0.2);
   font-family: 'Monaco', 'Courier New', monospace;
   user-select: none;
-  width: auto;
-  min-width: 45px;
+  width: 52px;
   height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
 }
 
 .search-type-toggle:hover {
@@ -282,7 +282,7 @@ body.dark .glass-blob {
 }
 
 .search-type-toggle:active {
-  transform: translateY(-50%) scale(0.95);
+  transform: translateY(-50%) scale(0.95) !important;
   transition: all var(--duration-fast) var(--ease-out);
 }
 
