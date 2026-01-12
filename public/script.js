@@ -236,7 +236,7 @@ async function handlePinterestSearch(keywords) {
     const res = await fetch('/api/utils/utility', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'pinterest-search', query: keywords, limit: 20 })
+      body: JSON.stringify({ action: 'pinterest-search', query: keywords, limit: 4 })
     });
 
     if (!res.ok) {
@@ -250,39 +250,42 @@ async function handlePinterestSearch(keywords) {
       throw new Error('Tidak ada hasil ditemukan di Pinterest');
     }
 
-    // Display Pinterest search results in grid
+    // Display Pinterest search results in grid (max 4 results in 2x2 layout)
     const resultDiv = document.querySelector('.result');
     let html = `
       <h3 style="margin-bottom: 20px;">📌 Hasil Pinterest: "${keywords}"</h3>
       <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 0.9rem;">
         Ditemukan ${data.count} gambar. Klik untuk download.
       </p>
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 20px;">
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 20px; max-width: 100%;">
     `;
 
     data.pins.forEach((pin, index) => {
       // Use thumbnail for grid display as it is more reliable than the upgraded HD URL
       const imageUrl = pin.thumbnail || pin.image || '';
-      const title = (pin.title || pin.description || 'Pinterest Image').substring(0, 50);
+      const title = (pin.title || pin.description || 'Pinterest Image').substring(0, 40);
 
       html += `
         <div class="pinterest-result-item" 
              data-pin-url="${pin.url || ''}" 
              data-pin-title="${title}"
-             style="position: relative; cursor: pointer; border-radius: 12px; overflow: hidden; background: var(--input-bg); transition: all 0.3s ease; border: 1px solid var(--input-border);">
+             style="position: relative; cursor: pointer; border-radius: 16px; overflow: hidden; background: var(--input-bg); transition: all 0.3s ease; border: 1px solid var(--input-border); aspect-ratio: 1;">
           ${imageUrl ? `
             <img src="${imageUrl}" 
                  alt="${title}" 
-                 loading="lazy" 
-                 style="width: 100%; height: 180px; object-fit: cover; display: block;"
-                 onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDUwIDUwtextIHg9IjUwJSIgeT0iNTAlIiBkeT0iLjNlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSI1MCI+8J+MjzwvdGV4dD48L3N2Zz4=';">
+                 loading="eager" 
+                 style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                 onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div style="width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%); position: absolute; top: 0; left: 0;">
+              <span style="font-size: 48px;">📌</span>
+            </div>
           ` : `
-            <div style="width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%);">
-              <span style="font-size: 32px;">📌</span>
+            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%);">
+              <span style="font-size: 48px;">📌</span>
             </div>
           `}
-          <div style="padding: 10px; background: var(--result-bg); backdrop-filter: blur(10px);">
-            <p style="margin: 0; font-size: 0.75rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${title}</p>
+          <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); backdrop-filter: blur(10px);">
+            <p style="margin: 0; font-size: 0.8rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${title}</p>
           </div>
         </div>
       `;
@@ -721,17 +724,6 @@ async function handleUrlDownload(url) {
           const platform = e.target.dataset.platform;
           download(e.target.dataset.url, format, platform);
         };
-        // Auto-trigger download for Pinterest (as requested)
-        if (platform === 'Pinterest' && metadata.downloadUrl) {
-          console.log('📌 Auto-triggering Pinterest download...');
-          // Small delay to ensure UI update is seen first
-          setTimeout(() => {
-            // Trigger the download button click to ensure all logic (like validation) runs
-            const dlBtn = resultDiv.querySelector('.dl-image');
-            if (dlBtn) dlBtn.click();
-          }, 800);
-        }
-
       });
     }
   } else {

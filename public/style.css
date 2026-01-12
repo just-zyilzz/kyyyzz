@@ -359,6 +359,12 @@ body.dark div[style*="background:#e0e0ff"] {
   gap: 15px;
 }
 
+/* Input wrapper to contain toggle button + input field */
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
 input[type="text"] {
   width: 100%;
   padding: 18px 22px 18px 85px;
@@ -1290,6 +1296,68 @@ body.dark .theme-toggle {
     transform: translateY(0);
   }
 }
+
+/* ===== PINTEREST GRID RESULTS ===== */
+.pinterest-result-item {
+  opacity: 0;
+  animation: fadeInUp var(--duration-slow) var(--ease-smooth) forwards;
+  transition: all var(--duration-normal) var(--ease-smooth);
+  will-change: transform, box-shadow, border-color;
+}
+
+/* Staggered animation for Pinterest results (2x2 grid) */
+.pinterest-result-item:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.pinterest-result-item:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.pinterest-result-item:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.pinterest-result-item:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+.pinterest-result-item:hover {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 12px 32px rgba(230, 0, 35, 0.35) !important;
+  border-color: rgba(230, 0, 35, 0.5) !important;
+  z-index: 10;
+}
+
+.pinterest-result-item:active {
+  transform: translateY(-3px) scale(1.01);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+/* Pinterest image styling */
+.pinterest-result-item img {
+  transition: transform var(--duration-normal) var(--ease-smooth);
+}
+
+.pinterest-result-item:hover img {
+  transform: scale(1.05);
+}
+
+/* Mobile responsive for Pinterest grid */
+@media (max-width: 480px) {
+  .pinterest-result-item {
+    border-radius: 12px;
+  }
+
+  .pinterest-result-item div[style*="padding: 12px"] {
+    padding: 8px !important;
+  }
+
+  .pinterest-result-item p {
+    font-size: 0.7rem !important;
+  }
+}
+
 
 /* ===== SMOOTH CONTAINER ENTRANCE ===== */
 .container {
