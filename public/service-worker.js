@@ -3,7 +3,7 @@
  * Provides offline functionality and improves load performance
  */
 
-const CACHE_VERSION = 'v1.0.1-20260106';
+const CACHE_VERSION = 'v1.0.2-20260112';
 const CACHE_NAME = `kfocean-cache-${CACHE_VERSION}`;
 
 // Assets to cache on install

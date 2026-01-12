@@ -7,15 +7,24 @@
         },
         {
             "src": "/(.*\\.css|.*\\.js|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg|.*\\.ico)",
-            "dest": "/public/$1"
+            "dest": "/public/$1",
+            "headers": {
+                "Cache-Control": "public, max-age=0, must-revalidate"
+            }
         },
         {
             "src": "/",
-            "dest": "/public/index.html"
+            "dest": "/public/index.html",
+            "headers": {
+                "Cache-Control": "no-cache, no-store, must-revalidate"
+            }
         },
         {
             "src": "/(.*)",
-            "dest": "/public/index.html"
+            "dest": "/public/index.html",
+            "headers": {
+                "Cache-Control": "no-cache, no-store, must-revalidate"
+            }
         }
     ],
     "functions": {
