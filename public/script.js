@@ -261,8 +261,9 @@ async function handlePinterestSearch(keywords) {
     `;
 
     data.pins.forEach((pin, index) => {
-      // Use thumbnail for grid display as it is more reliable than the upgraded HD URL
+      // Use thumbnail for grid display via proxy to bypass CORS
       const imageUrl = pin.thumbnail || pin.image || '';
+      const proxiedImageUrl = imageUrl ? `/api/pinterest-proxy?url=${encodeURIComponent(imageUrl)}` : '';
       const title = (pin.title || pin.description || 'Pinterest Image').substring(0, 40);
 
       html += `
@@ -270,10 +271,10 @@ async function handlePinterestSearch(keywords) {
              data-pin-url="${pin.url || ''}" 
              data-pin-title="${title}"
              style="position: relative; cursor: pointer; border-radius: 16px; overflow: hidden; background: var(--input-bg); transition: all 0.3s ease; border: 1px solid var(--input-border); aspect-ratio: 1;">
-          ${imageUrl ? `
-            <img src="${imageUrl}" 
+          ${proxiedImageUrl ? `
+            <img src="${proxiedImageUrl}" 
                  alt="${title}" 
-                 loading="eager" 
+                 loading="eager"
                  style="width: 100%; height: 100%; object-fit: cover; display: block;"
                  onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
             <div style="width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%); position: absolute; top: 0; left: 0;">
