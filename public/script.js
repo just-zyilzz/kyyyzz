@@ -1183,3 +1183,102 @@ if (window.matchMedia('(display-mode: standalone)').matches) {
 
 console.log('🚀 PWA Install prompt initialized');
 
+// ===== AUTH & HISTORY LOGIC =====
+document.addEventListener('DOMContentLoaded', () => {
+  checkLoginStatus();
+
+  // Logout handler
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await fetch('/api/auth?action=logout');
+        window.location.reload();
+      } catch (e) {
+        console.error('Logout failed:', e);
+      }
+    });
+  }
+
+  // History button handler
+  const historyBtn = document.getElementById('historyBtn');
+  const historyModal = document.getElementById('historyModal');
+  const closeModal = document.querySelector('.close-modal');
+
+  if (historyBtn && historyModal) {
+    historyBtn.addEventListener('click', async () => {
+      historyModal.style.display = 'flex';
+      await loadHistory();
+    });
+
+    closeModal.addEventListener('click', () => {
+      historyModal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+      if (e.target === historyModal) {
+        historyModal.style.display = 'none';
+      }
+    });
+  }
+});
+
+async function checkLoginStatus() {
+  try {
+    const res = await fetch('/api/user?action=me');
+    const data = await res.json();
+
+    const authSection = document.getElementById('authSection');
+    const loginBtn = document.getElementById('loginBtn');
+    const userSection = document.getElementById('userSection');
+    const usernameDisplay = document.getElementById('usernameDisplay');
+
+    if (data.success && data.user) {
+      if (loginBtn) loginBtn.style.display = 'none';
+      if (userSection) {
+        userSection.style.display = 'inline-flex';
+        userSection.classList.remove('hidden');
+      }
+      if (usernameDisplay) usernameDisplay.textContent = `Hi, ${data.user.username}`;
+    } else {
+      if (loginBtn) loginBtn.style.display = 'inline-flex';
+      if (userSection) userSection.style.display = 'none';
+    }
+  } catch (e) {
+    console.error('Check login status failed:', e);
+  }
+}
+
+async function loadHistory() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '<p>Loading history...</p>';
+
+  try {
+    const res = await fetch('/api/user?action=history');
+    const data = await res.json();
+
+    if (data.success && data.history && data.history.length > 0) {
+      let html = '';
+      data.history.forEach(item => {
+        const date = new Date(item.timestamp).toLocaleString();
+        html += `
+          <div style="border-bottom: 1px solid #eee; padding: 10px 0;">
+            <div style="font-weight: bold; color: #333;">${item.title || 'No Title'}</div>
+            <div style="font-size: 12px; color: #666; margin: 4px 0;">
+              <span style="background: #eee; padding: 2px 6px; border-radius: 4px;">${item.platform}</span>
+              <span>${date}</span>
+            </div>
+            <a href="${item.url}" target="_blank" style="font-size: 12px; color: #667eea; text-decoration: none;">Link Asli</a>
+          </div>
+        `;
+      });
+      list.innerHTML = html;
+    } else {
+      list.innerHTML = '<p>Belum ada history download.</p>';
+    }
+  } catch (e) {
+    list.innerHTML = '<p style="color: red;">Gagal memuat history.</p>';
+    console.error('Load history failed:', e);
+  }
+}
+

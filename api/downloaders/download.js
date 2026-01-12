@@ -91,12 +91,16 @@ async function handleYouTubeAudio(req, res) {
             });
         }
 
+        const fileName = (result.result.id || Date.now()) + '.mp3';
+        
+        await saveHistory(req, url, result.result.title || 'YouTube Audio', 'YouTube Audio', fileName);
+
         res.json({
             success: true,
             title: result.result.title || 'YouTube Audio',
             thumbnail: result.result.thumbnail || null,
             downloadUrl: result.result.download,
-            fileName: (result.result.id || Date.now()) + '.mp3',
+            fileName: fileName,
             format: 'mp3',
             duration: result.result.duration || 0
         });
@@ -200,6 +204,8 @@ async function handleTikTok(req, res) {
             fileName = `${result.id || Date.now()}.mp4`;
         }
 
+        await saveHistory(req, url, result.title || 'TikTok Video', 'TikTok', fileName);
+
         res.json({
             success: true,
             title: result.title,
@@ -296,19 +302,7 @@ async function handleInstagram(req, res) {
         const fileName = `instagram_${Date.now()}.mp4`;
         const isCarousel = allUrls.length > 1;
 
-        if (user && user.id) {
-            try {
-                await saveDownload(
-                    user.id,
-                    url,
-                    title || result.metadata?.caption || result.metadata?.username || '—',
-                    'Instagram',
-                    fileName
-                );
-            } catch (dbError) {
-                console.error('Failed to save history:', dbError);
-            }
-        }
+        await saveHistory(req, url, title || result.metadata?.caption || result.metadata?.username || 'Instagram Post', 'Instagram', fileName);
 
         res.json({
             success: true,
@@ -446,6 +440,9 @@ async function handleTwitter(req, res) {
 
         const tweetIdMatch = url.match(/status\/(\d+)/);
         const tweetId = tweetIdMatch ? tweetIdMatch[1] : Date.now();
+        const fileName = `twitter_${tweetId}.mp4`;
+
+        await saveHistory(req, url, result.title || 'Twitter Video', 'Twitter', fileName);
 
         res.json({
             success: true,

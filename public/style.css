@@ -316,6 +316,42 @@ body.dark .search-type-toggle:hover {
   }
 }
 
+/* ===== PERFORMANCE OPTIMIZATIONS ===== */
+@media (max-width: 768px) {
+  /* Disable heavy animations on mobile */
+  body::before,
+  body::after,
+  .glass-blob,
+  .container::after {
+    animation: none !important;
+    display: none !important; /* Hide decorative blobs to save GPU/Memory */
+  }
+
+  /* Improve scroll performance */
+  body {
+    background-attachment: scroll !important;
+  }
+
+  /* Reduce glass effect cost */
+  .container,
+  .search-type-toggle,
+  .result,
+  input[type="text"],
+  button,
+  .dl-all-carousel,
+  .popup {
+    backdrop-filter: blur(10px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(180%) !important;
+    box-shadow: none !important; /* Simplify shadows */
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  }
+  
+  /* Simplify background gradients */
+  body.dark {
+    background-image: url('./images/snoopy-dark.jpg'); /* Ensure it loads */
+  }
+}
+
 /* ===== TYPOGRAPHY ===== */
 h1 {
   text-align: center;
