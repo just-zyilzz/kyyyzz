@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { getUserByGithubId, createGithubUser } = require('../lib/db');
+const { getUserByGithubId, createGithubUser, updateUserProfile } = require('../lib/db');
 const { generateToken, createCookieHeader } = require('../lib/session');
 
 module.exports = async (req, res) => {
@@ -10,7 +10,8 @@ module.exports = async (req, res) => {
         // Check if we are in dev or prod for redirect URI
         const host = req.headers.host;
         const protocol = req.headers['x-forwarded-proto'] || 'http';
-        const redirect_uri = `${protocol}://${host}/api/auth?action=callback`;
+        const configuredRedirect = process.env.GITHUB_REDIRECT_URI;
+        const redirect_uri = configuredRedirect || `${protocol}://${host}/api/auth?action=callback`;
 
         if (!GITHUB_CLIENT_ID) {
             return res.status(500).json({ error: 'GitHub Client ID not configured' });
@@ -19,7 +20,7 @@ module.exports = async (req, res) => {
         const params = new URLSearchParams({
             client_id: GITHUB_CLIENT_ID,
             redirect_uri: redirect_uri,
-            scope: 'read:user',
+            scope: 'read:user user:email', // Request email access
             allow_signup: 'true'
         });
 
@@ -50,17 +51,38 @@ module.exports = async (req, res) => {
                 throw new Error('Failed to get access token');
             }
 
+            // Get user profile from GitHub
             const userResponse = await axios.get('https://api.github.com/user', {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
 
             const githubUser = userResponse.data;
-            
-            let user = await getUserByGithubId(githubUser.id.toString());
+
+            // Extract user data
+            const username = githubUser.login;
+            const githubId = githubUser.id.toString();
+            const email = githubUser.email || null; // Some users hide their email
+            const avatarUrl = githubUser.avatar_url || null;
+
+            // Check if user exists
+            let user = await getUserByGithubId(githubId);
+
             if (!user) {
-                user = await createGithubUser(githubUser.login, githubUser.id.toString());
+                // Create new user with email and avatar
+                user = await createGithubUser(username, githubId, email, avatarUrl);
+            } else {
+                // Update existing user's email and avatar if changed
+                if (email || avatarUrl) {
+                    await updateUserProfile(user.id, {
+                        email: email,
+                        avatar_url: avatarUrl
+                    });
+                    // Refresh user object with updated data
+                    user = await getUserByGithubId(githubId);
+                }
             }
 
+            // Generate JWT token with full user data
             const token = generateToken(user);
             const cookie = createCookieHeader('token', token);
             res.setHeader('Set-Cookie', cookie);

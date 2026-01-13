@@ -4,7 +4,7 @@ const { getDownloadHistory } = require('../lib/db');
 module.exports = async (req, res) => {
     const action = req.query.action || 'me';
     const user = getUserFromRequest(req);
-    
+
     if (!user) {
         return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
@@ -20,7 +20,16 @@ module.exports = async (req, res) => {
     }
 
     if (action === 'me') {
-        return res.json({ success: true, user: { id: user.id, username: user.username } });
+        // Return full user profile from JWT token
+        return res.json({
+            success: true,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email || null,
+                avatar: user.avatar || null
+            }
+        });
     }
 
     res.status(400).json({ success: false, error: 'Invalid action' });
