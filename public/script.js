@@ -270,7 +270,7 @@ async function handlePinterestSearch(keywords) {
              style="position: relative; cursor: pointer; border-radius: 16px; overflow: hidden; background: var(--input-bg); transition: all 0.3s ease; border: 1px solid var(--input-border); aspect-ratio: 1;">
           ${proxiedImageUrl ? `
             <!-- Fallback icon (always visible) -->
-            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%); position: absolute; top: 0; left: 0; z-index: 1;">
+            <div class="pinterest-fallback" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%); position: absolute; top: 0; left: 0; z-index: 1;">
               <span style="font-size: 48px;">📌</span>
             </div>
             <!-- Image (fades in on load) -->
@@ -279,7 +279,7 @@ async function handlePinterestSearch(keywords) {
                  loading="eager"
                  style="width: 100%; height: 100%; object-fit: cover; display: block; position: absolute; top: 0; left: 0; z-index: 2; opacity: 0; transition: opacity 0.3s ease;"
                  onload="this.style.opacity='1';"
-                 onerror="console.error('Pinterest image failed:', this.src); this.style.display='none';">
+                 onerror="console.warn('Pinterest thumbnail failed to load:', '${imageUrl.substring(0, 50)}...'); this.style.display='none';">
           ` : `
             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(230, 0, 35, 0.1) 0%, rgba(189, 8, 28, 0.1) 100%);">
               <span style="font-size: 48px;">📌</span>
@@ -768,7 +768,7 @@ async function downloadFile(url, filename, proxyUrl = null) {
         const proxyRes = await fetch(proxyUrl);
         if (!proxyRes.ok) throw new Error('Proxy fetch failed');
         const blob = await proxyRes.blob();
-        
+
         const blobUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = blobUrl;
