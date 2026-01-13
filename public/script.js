@@ -840,6 +840,9 @@ async function download(url, format, platform) {
     } else if (platform === 'Instagram') {
       endpoint = '/api/downloaders/download';
       body.platform = 'instagram';
+    } else if (platform === 'Twitter') {
+      endpoint = '/api/downloaders/download';
+      body.platform = 'twitter';
     } else if (platform === 'Pinterest') {
       endpoint = '/api/downloaders/download';
       body.platform = 'pinterest';
@@ -936,7 +939,7 @@ async function downloadCarouselItem(mediaUrl, index) {
     popup.style.background = 'rgba(28, 28, 30, 0.95)';
 
     // Use proxy endpoint to download
-    const proxyUrl = `/ api / instagram - proxy ? url = ${encodeURIComponent(mediaUrl)} `;
+    const proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(mediaUrl)}`;
 
     // Create anchor and trigger download
     const a = document.createElement('a');

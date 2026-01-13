@@ -29,6 +29,17 @@ const { savePin } = require('../../lib/pinterest');
 const ytSearch = require('yt-search');
 const axios = require('axios');
 
+async function saveHistory(req, url, title, platform, filename) {
+    try {
+        const user = getUserFromRequest(req);
+        if (user && user.id) {
+            await saveDownload(user.id, url, title, platform, filename);
+        }
+    } catch (err) {
+        console.error('Failed to save history:', err.message);
+    }
+}
+
 // ======================== YOUTUBE VIDEO ========================
 async function handleYouTube(req, res) {
     const url = req.method === 'POST' ? req.body.url : req.query.url;
