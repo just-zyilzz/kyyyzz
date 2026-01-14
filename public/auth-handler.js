@@ -4,7 +4,47 @@ let currentUser = null;
 // Check auth state on page load
 document.addEventListener('DOMContentLoaded', async () => {
     await checkAuthState();
+    initSidebar();
 });
+
+/**
+ * Initialize sidebar menu
+ */
+function initSidebar() {
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const sidebarMenu = document.getElementById('sidebarMenu');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const closeSidebar = document.getElementById('closeSidebar');
+
+    // Open sidebar
+    if (hamburgerBtn) {
+        hamburgerBtn.addEventListener('click', () => {
+            sidebarMenu.classList.add('active');
+            sidebarOverlay.classList.add('active');
+        });
+    }
+
+    // Close sidebar
+    function closeSidebarMenu() {
+        sidebarMenu.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+    }
+
+    if (closeSidebar) {
+        closeSidebar.addEventListener('click', closeSidebarMenu);
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeSidebarMenu);
+    }
+
+    // ESC key to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebarMenu.classList.contains('active')) {
+            closeSidebarMenu();
+        }
+    });
+}
 
 /**
  * Check if user is logged in
@@ -12,7 +52,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function checkAuthState() {
     const loginBtn = document.getElementById('loginBtn');
     const userSection = document.getElementById('userSection');
-    const usernameDisplay = document.getElementById('usernameDisplay');
 
     try {
         const res = await fetch('/api/user?action=me');
@@ -40,22 +79,23 @@ async function checkAuthState() {
 function showUserProfile(user) {
     const loginBtn = document.getElementById('loginBtn');
     const userSection = document.getElementById('userSection');
-    const usernameDisplay = document.getElementById('usernameDisplay');
+    const userAvatar = document.getElementById('userAvatar');
+    const userName = document.getElementById('userName');
 
     // Hide login button, show user section
     loginBtn.style.display = 'none';
-    userSection.style.display = 'flex';
+    userSection.classList.add('active');
 
-    // Update username display with avatar if available
+    // Update avatar and name
     if (user.avatar) {
-        usernameDisplay.innerHTML = `
-      <img src="${user.avatar}" alt="${user.username}" 
-           style="width: 24px; height: 24px; border-radius: 50%; margin-right: 6px; vertical-align: middle;">
-      <span>${user.username}</span>
-    `;
+        userAvatar.src = user.avatar;
+        userAvatar.alt = user.username;
     } else {
-        usernameDisplay.textContent = user.username;
+        // Fallback avatar
+        userAvatar.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230A84FF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/%3E%3C/svg%3E';
     }
+
+    userName.textContent = user.username;
 
     // Setup logout button
     const logoutBtn = document.getElementById('logoutBtn');
@@ -63,10 +103,16 @@ function showUserProfile(user) {
         logoutBtn.addEventListener('click', logout);
     }
 
-    // Setup history button
+    // Setup history button (in sidebar)
     const historyBtn = document.getElementById('historyBtn');
     if (historyBtn) {
-        historyBtn.addEventListener('click', showHistory);
+        historyBtn.addEventListener('click', () => {
+            // Close sidebar first
+            document.getElementById('sidebarMenu').classList.remove('active');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+            // Show history
+            showHistory();
+        });
     }
 }
 
