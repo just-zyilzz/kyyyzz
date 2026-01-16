@@ -46,6 +46,7 @@ async function saveHistory(req, url, title, platform, filename) {
 async function handleYouTube(req, res) {
     const url = req.method === 'POST' ? req.body.url : req.query.url;
     let quality = req.method === 'POST' ? (req.body.quality || '1080') : (req.query.quality || '1080');
+    const isServerless = process.env.VERCEL || process.env.NOW_REGION;
 
     // Sanitasi input quality (hapus 'p' jika ada)
     if (quality) quality = quality.toString().replace('p', '');
@@ -60,37 +61,38 @@ async function handleYouTube(req, res) {
     }
 
     try {
-        console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}`);
+        console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}, env: ${isServerless ? 'serverless' : 'node-server'}`);
         const ytCookiesPresent = !!YTFallback.loadCookies();
 
-        // Priority 1: Try SaveTube (best for HD quality)
-        const qualitiesToTry = quality === '1080' ? ['1080', '720'] : [quality];
-        for (const q of qualitiesToTry) {
-            try {
-                const result = await savetube.download(url, q);
-                if (result.status && result.result) {
-                    const fileName = (result.result.id || Date.now()) + '.mp4';
-                    await saveHistory(req, url, result.result.title || 'YouTube Video', 'YouTube', fileName);
+        if (!isServerless) {
+            const qualitiesToTry = quality === '1080' ? ['1080', '720'] : [quality];
+            for (const q of qualitiesToTry) {
+                try {
+                    const result = await savetube.download(url, q);
+                    if (result.status && result.result) {
+                        const fileName = (result.result.id || Date.now()) + '.mp4';
+                        await saveHistory(req, url, result.result.title || 'YouTube Video', 'YouTube', fileName);
 
-                    const sourceUrl = result.result.download;
-                    const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
-                    const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
+                        const sourceUrl = result.result.download;
+                        const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
+                        const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
 
-                    return res.json({
-                        success: true,
-                        title: result.result.title || 'YouTube Video',
-                        thumbnail: result.result.thumbnail || null,
-                        downloadUrl: streamUrl,
-                        streamUrl: streamUrl,
-                        autoDownloadUrl: autoDownloadUrl,
-                        fileName: fileName,
-                        quality: result.result.quality || q,
-                        duration: result.result.duration || 0,
-                        source: 'savetube'
-                    });
+                        return res.json({
+                            success: true,
+                            title: result.result.title || 'YouTube Video',
+                            thumbnail: result.result.thumbnail || null,
+                            downloadUrl: streamUrl,
+                            streamUrl: streamUrl,
+                            autoDownloadUrl: autoDownloadUrl,
+                            fileName: fileName,
+                            quality: result.result.quality || q,
+                            duration: result.result.duration || 0,
+                            source: 'savetube'
+                        });
+                    }
+                } catch (e) {
+                    console.error(`[SaveTube Video ${q}p] Error:`, e.message);
                 }
-            } catch (e) {
-                console.error(`[SaveTube Video ${q}p] Error:`, e.message);
             }
         }
 
@@ -121,38 +123,51 @@ async function handleYouTube(req, res) {
             console.error(`[YTDL Fallback Video] Error:`, e.message);
         }
 
-        // Priority 3: Final fallback y2mate
-        try {
-            const y2mateResult = await ythd(url, quality);
-            await saveHistory(req, url, y2mateResult.title || 'YouTube Video', 'YouTube', `${y2mateResult.videoId || Date.now()}.mp4`);
-            {
-                const fileName = `${y2mateResult.videoId || Date.now()}.mp4`;
-                const sourceUrl = y2mateResult.downloadUrl;
-                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
-                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
+        if (!isServerless) {
+            try {
+                const y2mateResult = await ythd(url, quality);
+                await saveHistory(req, url, y2mateResult.title || 'YouTube Video', 'YouTube', `${y2mateResult.videoId || Date.now()}.mp4`);
+                {
+                    const fileName = `${y2mateResult.videoId || Date.now()}.mp4`;
+                    const sourceUrl = y2mateResult.downloadUrl;
+                    const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
+                    const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
+                    return res.json({
+                        success: true,
+                        title: y2mateResult.title || 'YouTube Video',
+                        thumbnail: y2mateResult.thumbnail || null,
+                        downloadUrl: streamUrl,
+                        streamUrl: streamUrl,
+                        autoDownloadUrl: autoDownloadUrl,
+                        fileName: fileName,
+                        quality: `${quality}p`,
+                        duration: 0,
+                        source: 'y2mate'
+                    });
+                }
+            } catch (err) {
+                console.error(`[Y2mate Video] Final fallback error:`, err.message);
                 return res.json({
-                    success: true,
-                    title: y2mateResult.title || 'YouTube Video',
-                    thumbnail: y2mateResult.thumbnail || null,
-                    downloadUrl: streamUrl,
-                    streamUrl: streamUrl,
-                    autoDownloadUrl: autoDownloadUrl,
-                    fileName: fileName,
-                    quality: `${quality}p`,
-                    duration: 0,
-                    source: 'y2mate'
+                    success: false,
+                    error: 'Download gagal dari semua sumber. Silakan coba lagi nanti.',
+                    debug: {
+                        platform: 'YouTube',
+                        url,
+                        quality,
+                        lastError: err.message,
+                        cookiesDetected: ytCookiesPresent
+                    }
                 });
             }
-        } catch (err) {
-            console.error(`[Y2mate Video] Final fallback error:`, err.message);
+        } else {
             return res.json({
                 success: false,
-                error: 'Download gagal dari semua sumber. Silakan coba lagi nanti.',
+                error: 'Download gagal. YouTube membatasi akses dari server. Coba lagi beberapa saat atau gunakan koneksi berbeda.',
                 debug: {
                     platform: 'YouTube',
                     url,
                     quality,
-                    lastError: err.message,
+                    lastError: 'All internal fallbacks failed in serverless mode',
                     cookiesDetected: ytCookiesPresent
                 }
             });
