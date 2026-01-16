@@ -422,15 +422,15 @@ async function handleUrlDownload(url) {
   let metadata;
 
   // Get metadata based on platform
-  if (platform === 'YouTube') {
-    try {
-      const res = await fetchWithRetry('/api/utils/utility', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'thumbnail', url })
-      }, 1, 5000);
-      metadata = await res.json();
-    } catch (error) {
+    if (platform === 'YouTube') {
+      try {
+        const res = await fetchWithRetry('/api/utils/utility', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'thumbnail', url })
+        }, 1, 10000); // Increased timeout to 10s
+        metadata = await res.json();
+      } catch (error) {
       console.error('YouTube metadata error:', error.message);
       metadata = { success: true, title: 'YouTube Video', platform: 'YouTube', thumbnail: null };
     }
@@ -838,6 +838,10 @@ async function download(url, format, platform) {
     if (platform === 'YouTube') {
       endpoint = '/api/downloaders/download';
       body.platform = format === 'audio' ? 'youtube-audio' : 'youtube';
+      // Add default quality to prevent server errors with high resolutions
+      if (format !== 'audio') {
+        body.quality = '720';
+      }
     } else if (platform === 'TikTok') {
       endpoint = '/api/downloaders/download';
       body.platform = 'tiktok';
@@ -859,11 +863,14 @@ async function download(url, format, platform) {
       throw new Error('Platform tidak didukung');
     }
 
+    // Increased timeout for YouTube as it can be slow
+    const timeout = platform === 'YouTube' ? 60000 : 15000;
+
     const res = await fetchWithRetry(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    }, 1, 15000);
+    }, 1, timeout);
 
     let data;
     try {
@@ -905,22 +912,19 @@ async function download(url, format, platform) {
         popup.textContent = '⏳ Starting...';
 
         if (platform === 'YouTube') {
-          const streamUrl = data.streamUrl || downloadUrl;
-          const autoDownloadUrl = data.autoDownloadUrl || downloadUrl;
-
+          // Use proxy for YouTube to avoid CORS and ensure download
+          const proxyUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&download=true&filename=${encodeURIComponent(fileName)}`;
+          
           try {
-            window.open(streamUrl, '_blank');
-          } catch {}
-
-          const a = document.createElement('a');
-          a.href = autoDownloadUrl;
-          a.download = fileName;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-
-          popup.textContent = '✅ Playback & auto-download started!';
+            // Trigger download via proxy
+            window.location.href = proxyUrl;
+            popup.textContent = '✅ Download started!';
+          } catch (e) {
+            console.error('Download trigger error:', e);
+            // Fallback
+            window.open(proxyUrl, '_blank');
+            popup.textContent = '✅ Opened in new tab!';
+          }
         } else {
           let primaryUrl = downloadUrl;
           let proxyUrl = null;
