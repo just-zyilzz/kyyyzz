@@ -62,33 +62,7 @@ async function handleYouTube(req, res) {
     try {
         console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}`);
 
-        // First try ytdl-fallback (often more reliable under rate-limit)
-        try {
-            const fallbackResult = await YTFallback.mp4(url, quality);
-            await saveHistory(req, url, fallbackResult.title || 'YouTube Video', 'YouTube', `${fallbackResult.videoId || Date.now()}.mp4`);
-            {
-                const fileName = `${fallbackResult.videoId || Date.now()}.mp4`;
-                const sourceUrl = fallbackResult.downloadUrl;
-                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
-                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
-                return res.json({
-                    success: true,
-                    title: fallbackResult.title || 'YouTube Video',
-                    thumbnail: fallbackResult.thumbnail || null,
-                    downloadUrl: streamUrl,
-                    streamUrl: streamUrl,
-                    autoDownloadUrl: autoDownloadUrl,
-                    fileName: fileName,
-                    quality: fallbackResult.quality || quality,
-                    duration: fallbackResult.duration || 0,
-                    source: 'ytdl-fallback'
-                });
-            }
-        } catch (e) {
-            console.error(`[YTDL Fallback Video] Error:`, e.message);
-        }
-
-        // Then try savetube for requested/alternative qualities
+        // Priority 1: Try SaveTube (best for HD quality)
         const qualitiesToTry = quality === '1080' ? ['1080', '720'] : [quality];
         for (const q of qualitiesToTry) {
             try {
@@ -119,7 +93,33 @@ async function handleYouTube(req, res) {
             }
         }
 
-        // Final fallback y2mate
+        // Priority 2: Try ytdl-fallback
+        try {
+            const fallbackResult = await YTFallback.mp4(url, quality);
+            await saveHistory(req, url, fallbackResult.title || 'YouTube Video', 'YouTube', `${fallbackResult.videoId || Date.now()}.mp4`);
+            {
+                const fileName = `${fallbackResult.videoId || Date.now()}.mp4`;
+                const sourceUrl = fallbackResult.downloadUrl;
+                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
+                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
+                return res.json({
+                    success: true,
+                    title: fallbackResult.title || 'YouTube Video',
+                    thumbnail: fallbackResult.thumbnail || null,
+                    downloadUrl: streamUrl,
+                    streamUrl: streamUrl,
+                    autoDownloadUrl: autoDownloadUrl,
+                    fileName: fileName,
+                    quality: fallbackResult.quality || quality,
+                    duration: fallbackResult.duration || 0,
+                    source: 'ytdl-fallback'
+                });
+            }
+        } catch (e) {
+            console.error(`[YTDL Fallback Video] Error:`, e.message);
+        }
+
+        // Priority 3: Final fallback y2mate
         try {
             const y2mateResult = await ythd(url, quality);
             await saveHistory(req, url, y2mateResult.title || 'YouTube Video', 'YouTube', `${y2mateResult.videoId || Date.now()}.mp4`);
@@ -176,33 +176,7 @@ async function handleYouTubeAudio(req, res) {
     try {
         console.log(`[YouTube Audio] Requesting download for: ${url}`);
 
-        // First try ytdl-core audio
-        try {
-            const fallbackResult = await YTFallback.mp3(url);
-            const fileName = `${fallbackResult.videoId || Date.now()}.mp3`;
-            await saveHistory(req, url, fallbackResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
-            {
-                const sourceUrl = fallbackResult.downloadUrl;
-                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio`;
-                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
-                return res.json({
-                    success: true,
-                    title: fallbackResult.title || 'YouTube Audio',
-                    thumbnail: fallbackResult.thumbnail || null,
-                    downloadUrl: streamUrl,
-                    streamUrl: streamUrl,
-                    autoDownloadUrl: autoDownloadUrl,
-                    fileName: fileName,
-                    format: 'mp3',
-                    duration: fallbackResult.duration || 0,
-                    source: 'ytdl-fallback'
-                });
-            }
-        } catch (e) {
-            console.error('[YTDL Fallback Audio] Error:', e.message);
-        }
-
-        // Then try SaveTube with mp3
+        // Priority 1: Try SaveTube with mp3
         try {
             const result = await savetube.download(url, 'mp3');
             if (result.status && result.result) {
@@ -230,6 +204,33 @@ async function handleYouTubeAudio(req, res) {
             console.error('[SaveTube Audio] Error:', e.message);
         }
 
+        // Priority 2: Try ytdl-core audio
+        try {
+            const fallbackResult = await YTFallback.mp3(url);
+            const fileName = `${fallbackResult.videoId || Date.now()}.mp3`;
+            await saveHistory(req, url, fallbackResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
+            {
+                const sourceUrl = fallbackResult.downloadUrl;
+                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio`;
+                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
+                return res.json({
+                    success: true,
+                    title: fallbackResult.title || 'YouTube Audio',
+                    thumbnail: fallbackResult.thumbnail || null,
+                    downloadUrl: streamUrl,
+                    streamUrl: streamUrl,
+                    autoDownloadUrl: autoDownloadUrl,
+                    fileName: fileName,
+                    format: 'mp3',
+                    duration: fallbackResult.duration || 0,
+                    source: 'ytdl-fallback'
+                });
+            }
+        } catch (e) {
+            console.error('[YTDL Fallback Audio] Error:', e.message);
+        }
+
+        // Priority 3: Y2mate audio fallback
         try {
             const y2mateResult = await ytmp3(url);
             const fileName = `${y2mateResult.videoId || Date.now()}.mp3`;

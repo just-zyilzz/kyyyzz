@@ -52,3 +52,6 @@ temp/
 # Git
 .git/
 .env*.local
+
+# YouTube cookies (sensitive - contains login session)
+yt-cookies.txt
