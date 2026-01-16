@@ -41,9 +41,18 @@ async function saveHistory(req, url, title, platform, filename) {
     }
 }
 
+function sanitizeUrl(url) {
+    if (!url) return url;
+    let u = String(url).trim();
+    u = u.replace(/^[`'"]+|[`'"]+$/g, '');
+    u = u.replace(/[),.;>\s]+$/g, '');
+    return u;
+}
+
 // ======================== YOUTUBE VIDEO ========================
 async function handleYouTube(req, res) {
-    const url = req.method === 'POST' ? req.body.url : req.query.url;
+    let url = req.method === 'POST' ? req.body.url : req.query.url;
+    url = sanitizeUrl(url);
     let quality = req.method === 'POST' ? (req.body.quality || '1080') : (req.query.quality || '1080');
     const isServerless = process.env.VERCEL || process.env.NOW_REGION;
 
@@ -61,7 +70,6 @@ async function handleYouTube(req, res) {
 
     try {
         console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}, env: ${isServerless ? 'serverless' : 'node-server'}`);
-        const ytCookiesPresent = !!YTFallback.loadCookies();
 
         // Priority 1: Try SaveTube (best for HD quality)
         const qualitiesToTry = quality === '1080' ? ['1080', '720'] : [quality];
@@ -101,7 +109,7 @@ async function handleYouTube(req, res) {
                 // Determine download URL
                 let downloadUrl = null;
                 let qualityLabel = quality + 'p';
-                
+
                 if (savefromResult.url && Array.isArray(savefromResult.url)) {
                     // If array of formats, find best match
                     const best = savefromResult.url.find(u => u.quality == quality) || savefromResult.url[0];
@@ -116,7 +124,7 @@ async function handleYouTube(req, res) {
                     await saveHistory(req, url, savefromResult.title || 'YouTube Video', 'YouTube', fileName);
                     const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&type=video`;
                     const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
-                    
+
                     return res.json({
                         success: true,
                         title: savefromResult.title || 'YouTube Video',
@@ -153,7 +161,8 @@ async function handleYouTube(req, res) {
 
 // ======================== YOUTUBE AUDIO ========================
 async function handleYouTubeAudio(req, res) {
-    const url = req.method === 'POST' ? req.body.url : req.query.url;
+    let url = req.method === 'POST' ? req.body.url : req.query.url;
+    url = sanitizeUrl(url);
 
     if (!url) {
         return res.status(400).json({ success: false, error: 'URL tidak boleh kosong' });
@@ -201,12 +210,12 @@ async function handleYouTubeAudio(req, res) {
             if (savefromResult) {
                 // For audio, we look for audio format or just use video and proxy converts header
                 let downloadUrl = null;
-                
+
                 if (savefromResult.url && Array.isArray(savefromResult.url)) {
                     // Try to find audio only or lowest quality video?
                     // SaveFrom usually provides video. We can use any video URL.
                     // Ideally check for 'audio' type but assuming video is fine for proxy
-                    const best = savefromResult.url[0]; 
+                    const best = savefromResult.url[0];
                     downloadUrl = best.url;
                 } else if (savefromResult.url) {
                     downloadUrl = savefromResult.url;

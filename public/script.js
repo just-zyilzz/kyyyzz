@@ -108,6 +108,14 @@ function detectPlatform(url) {
   return 'Unknown';
 }
 
+function normalizeUrl(url) {
+  if (!url) return url;
+  let u = String(url).trim();
+  u = u.replace(/^['"`]+|['"`]+$/g, '');
+  u = u.replace(/[),.;>\s]+$/g, '');
+  return u;
+}
+
 // Debounce to prevent multiple simultaneous requests
 let isProcessing = false;
 
@@ -404,6 +412,7 @@ async function selectVideo(url, title) {
 
 // Handle URL download (existing logic)
 async function handleUrlDownload(url) {
+  url = normalizeUrl(url);
   const platform = detectPlatform(url);
 
   if (platform === 'Unknown') {
