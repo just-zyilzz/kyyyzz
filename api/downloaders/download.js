@@ -77,16 +77,15 @@ async function handleYouTube(req, res) {
         await saveHistory(req, url, info.title || 'YouTube Video', 'YouTube', fileName);
 
         const sourceUrl = info.url;
-        const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
-        const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
+        const directUrl = sourceUrl;
 
         return res.json({
             success: true,
             title: info.title || 'YouTube Video',
             thumbnail: info.thumbnail || null,
-            downloadUrl: streamUrl,
-            streamUrl: streamUrl,
-            autoDownloadUrl: autoDownloadUrl,
+            downloadUrl: directUrl,
+            streamUrl: directUrl,
+            autoDownloadUrl: directUrl,
             fileName: fileName,
             quality: info.quality || targetQuality,
             duration: info.duration || 0,
@@ -132,16 +131,15 @@ async function handleYouTubeAudio(req, res) {
         await saveHistory(req, url, info.title || 'YouTube Audio', 'YouTube Audio', fileName);
 
         const sourceUrl = info.url;
-        const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio`;
-        const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
+        const directUrl = sourceUrl;
 
         return res.json({
             success: true,
             title: info.title || 'YouTube Audio',
             thumbnail: info.thumbnail || null,
-            downloadUrl: streamUrl,
-            streamUrl: streamUrl,
-            autoDownloadUrl: autoDownloadUrl,
+            downloadUrl: directUrl,
+            streamUrl: directUrl,
+            autoDownloadUrl: directUrl,
             fileName: fileName,
             format: 'mp3',
             duration: info.duration || 0,
