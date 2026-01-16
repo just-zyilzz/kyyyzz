@@ -17,6 +17,7 @@
  */
 
 const savetube = require('../../lib/savetube');
+const YTFallback = require('../../lib/ytdl-fallback');
 const { tiktokDownloaderVideo } = require('../../lib/tiktok');
 const Instagram = require('../../lib/instagram');
 const { instagramDownload } = require('../../lib/scrapers');
@@ -56,19 +57,41 @@ async function handleYouTube(req, res) {
 
     try {
         console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}`);
+
+        // Try savetube first
         const result = await savetube.download(url, quality);
 
-        console.log(`[YouTube Video] API Response status:`, result.status);
-        console.log(`[YouTube Video] API Response code:`, result.code);
+        console.log(`[YouTube Video] Savetube API Response status:`, result.status);
+        console.log(`[YouTube Video] Savetube API Response code:`, result.code);
 
         if (!result.status || !result.result) {
-            console.error(`[YouTube Video] Download failed:`, result.error);
-            return res.status(result.code || 500).json({
-                success: false,
-                error: result.error || 'Download gagal. Coba lagi nanti atau gunakan URL lain.'
-            });
+            console.error(`[YouTube Video] Savetube failed:`, result.error);
+            console.log(`[YouTube Video] Trying ytdl-core fallback...`);
+
+            // Fallback to ytdl-core
+            try {
+                const fallbackResult = await YTFallback.mp4(url, quality);
+
+                return res.json({
+                    success: true,
+                    title: fallbackResult.title || 'YouTube Video',
+                    thumbnail: fallbackResult.thumbnail || null,
+                    downloadUrl: fallbackResult.downloadUrl,
+                    fileName: `${fallbackResult.videoId || Date.now()}.mp4`,
+                    quality: fallbackResult.quality || quality,
+                    duration: fallbackResult.duration || 0,
+                    source: 'ytdl-fallback'
+                });
+            } catch (fallbackError) {
+                console.error(`[YouTube Video] Fallback also failed:`, fallbackError.message);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Download gagal dari semua sumber. Coba lagi nanti.'
+                });
+            }
         }
 
+        // Savetube success
         res.json({
             success: true,
             title: result.result.title || 'YouTube Video',
@@ -76,12 +99,35 @@ async function handleYouTube(req, res) {
             downloadUrl: result.result.download,
             fileName: (result.result.id || Date.now()) + '.mp4',
             quality: result.result.quality || quality,
-            duration: result.result.duration || 0
+            duration: result.result.duration || 0,
+            source: 'savetube'
         });
     } catch (error) {
         console.error('❌ YouTube download error:', error.message);
         console.error('❌ Stack:', error.stack);
-        res.status(500).json({ success: false, error: 'Download gagal. Server error: ' + error.message });
+
+        // Try fallback on exception
+        try {
+            console.log(`[YouTube Video] Exception caught, trying ytdl-core fallback...`);
+            const fallbackResult = await YTFallback.mp4(url, quality);
+
+            return res.json({
+                success: true,
+                title: fallbackResult.title || 'YouTube Video',
+                thumbnail: fallbackResult.thumbnail || null,
+                downloadUrl: fallbackResult.downloadUrl,
+                fileName: `${fallbackResult.videoId || Date.now()}.mp4`,
+                quality: fallbackResult.quality || quality,
+                duration: fallbackResult.duration || 0,
+                source: 'ytdl-fallback'
+            });
+        } catch (fallbackError) {
+            console.error(`[YouTube Video] Fallback also failed:`, fallbackError.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Download gagal. Server error: ' + error.message
+            });
+        }
     }
 }
 
@@ -99,15 +145,44 @@ async function handleYouTubeAudio(req, res) {
     }
 
     try {
+        console.log(`[YouTube Audio] Requesting download for: ${url}`);
+
+        // Try savetube first
         const result = await savetube.download(url, 'mp3');
 
+        console.log(`[YouTube Audio] Savetube API Response status:`, result.status);
+
         if (!result.status || !result.result) {
-            return res.status(result.code || 500).json({
-                success: false,
-                error: result.error || 'Download gagal'
-            });
+            console.error(`[YouTube Audio] Savetube failed:`, result.error);
+            console.log(`[YouTube Audio] Trying ytdl-core fallback...`);
+
+            // Fallback to ytdl-core
+            try {
+                const fallbackResult = await YTFallback.mp3(url);
+                const fileName = `${fallbackResult.videoId || Date.now()}.mp3`;
+
+                await saveHistory(req, url, fallbackResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
+
+                return res.json({
+                    success: true,
+                    title: fallbackResult.title || 'YouTube Audio',
+                    thumbnail: fallbackResult.thumbnail || null,
+                    downloadUrl: fallbackResult.downloadUrl,
+                    fileName: fileName,
+                    format: 'mp3',
+                    duration: fallbackResult.duration || 0,
+                    source: 'ytdl-fallback'
+                });
+            } catch (fallbackError) {
+                console.error(`[YouTube Audio] Fallback also failed:`, fallbackError.message);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Download gagal dari semua sumber. Coba lagi nanti.'
+                });
+            }
         }
 
+        // Savetube success
         const fileName = (result.result.id || Date.now()) + '.mp3';
 
         await saveHistory(req, url, result.result.title || 'YouTube Audio', 'YouTube Audio', fileName);
@@ -119,11 +194,38 @@ async function handleYouTubeAudio(req, res) {
             downloadUrl: result.result.download,
             fileName: fileName,
             format: 'mp3',
-            duration: result.result.duration || 0
+            duration: result.result.duration || 0,
+            source: 'savetube'
         });
     } catch (error) {
         console.error('❌ YouTube audio download error:', error.message);
-        res.status(500).json({ success: false, error: 'Download gagal. Coba lagi' });
+        console.error('❌ Stack:', error.stack);
+
+        // Try fallback on exception
+        try {
+            console.log(`[YouTube Audio] Exception caught, trying ytdl-core fallback...`);
+            const fallbackResult = await YTFallback.mp3(url);
+            const fileName = `${fallbackResult.videoId || Date.now()}.mp3`;
+
+            await saveHistory(req, url, fallbackResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
+
+            return res.json({
+                success: true,
+                title: fallbackResult.title || 'YouTube Audio',
+                thumbnail: fallbackResult.thumbnail || null,
+                downloadUrl: fallbackResult.downloadUrl,
+                fileName: fileName,
+                format: 'mp3',
+                duration: fallbackResult.duration || 0,
+                source: 'ytdl-fallback'
+            });
+        } catch (fallbackError) {
+            console.error(`[YouTube Audio] Fallback also failed:`, fallbackError.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Download gagal. Server error: ' + error.message
+            });
+        }
     }
 }
 
