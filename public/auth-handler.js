@@ -158,11 +158,11 @@ async function loadInlineHistory() {
     historyList.innerHTML = '<p class="history-loading">Loading...</p>';
 
     try {
-        const res = await fetch('/api/user?action=history');
-        const data = await res.json();
+        // Get history from localStorage
+        const history = getDownloadHistory();
 
-        if (data.success && data.history && data.history.length > 0) {
-            historyList.innerHTML = data.history.map(item => `
+        if (history && history.length > 0) {
+            historyList.innerHTML = history.map(item => `
                 <div class="history-item">
                     ${item.thumbnail ? `<img src="${item.thumbnail}" alt="${item.title || 'Thumbnail'}" loading="lazy">` : ''}
                     <div class="history-item-details">
@@ -192,18 +192,57 @@ async function clearHistory() {
     }
 
     try {
-        const res = await fetch('/api/user?action=clear-history', { method: 'POST' });
-        const data = await res.json();
-
-        if (data.success) {
-            showPopup('🗑️ History cleared successfully', 'success', 2000);
-            // Reload history
-            loadInlineHistory();
-        } else {
-            showPopup('❌ Failed to clear history', 'error', 3000);
-        }
+        // Clear localStorage
+        localStorage.removeItem('downloadHistory');
+        showPopup('🗑️ History cleared successfully', 'success', 2000);
+        // Reload history
+        loadInlineHistory();
     } catch (error) {
         console.error('Clear history error:', error);
         showPopup('❌ Failed to clear history', 'error', 3000);
+    }
+}
+
+/**
+ * Get download history from localStorage
+ */
+function getDownloadHistory() {
+    try {
+        const history = localStorage.getItem('downloadHistory');
+        return history ? JSON.parse(history) : [];
+    } catch (error) {
+        console.error('Error reading history:', error);
+        return [];
+    }
+}
+
+/**
+ * Save download to history (localStorage)
+ */
+function saveToHistory(platform, title, thumbnail = null) {
+    try {
+        const history = getDownloadHistory();
+        const newItem = {
+            platform: platform.toUpperCase(),
+            title: title,
+            thumbnail: thumbnail,
+            timestamp: new Date().toISOString()
+        };
+
+        // Add to beginning of array
+        history.unshift(newItem);
+
+        // Keep only last 50 items
+        const trimmedHistory = history.slice(0, 50);
+
+        // Save to localStorage
+        localStorage.setItem('downloadHistory', JSON.stringify(trimmedHistory));
+
+        // Reload history display if section is visible
+        if (currentUser) {
+            loadInlineHistory();
+        }
+    } catch (error) {
+        console.error('Error saving to history:', error);
     }
 }

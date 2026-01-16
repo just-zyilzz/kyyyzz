@@ -674,6 +674,16 @@ async function handleUrlDownload(url) {
 
     resultDiv.style.display = 'block';
 
+    // Save to history (localStorage)
+    if (metadata.title || metadata.author) {
+      const title = metadata.title || 'Untitled';
+      const thumbnail = metadata.thumbnail || metadata.thumbnailUrl || null;
+      // Check if saveToHistory is defined (from auth-handler.js)
+      if (typeof saveToHistory === 'function') {
+        saveToHistory(platform, title, thumbnail);
+      }
+    }
+
     // Add progressive loading to result thumbnails
     const resultImg = resultDiv.querySelector('img');
     if (resultImg) {

@@ -31,7 +31,7 @@ module.exports = async (req, res) => {
         const params = new URLSearchParams({
             client_id: GITHUB_CLIENT_ID,
             redirect_uri: redirect_uri,
-            scope: 'read:user user:email gist', // Request email access and gist permissions
+            scope: 'read:user user:email', // Only request user profile and email
             allow_signup: 'true'
         });
 
@@ -93,8 +93,8 @@ module.exports = async (req, res) => {
                 }
             }
 
-            // Generate JWT token with full user data and GitHub access token
-            const token = generateToken(user, accessToken);
+            // Generate JWT token with user data only
+            const token = generateToken(user);
             const cookie = createCookieHeader('token', token);
             res.setHeader('Set-Cookie', cookie);
             return res.redirect('/');
