@@ -55,12 +55,17 @@ async function handleYouTube(req, res) {
     }
 
     try {
+        console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}`);
         const result = await savetube.download(url, quality);
 
+        console.log(`[YouTube Video] API Response status:`, result.status);
+        console.log(`[YouTube Video] API Response code:`, result.code);
+
         if (!result.status || !result.result) {
+            console.error(`[YouTube Video] Download failed:`, result.error);
             return res.status(result.code || 500).json({
                 success: false,
-                error: result.error || 'Download gagal'
+                error: result.error || 'Download gagal. Coba lagi nanti atau gunakan URL lain.'
             });
         }
 
@@ -75,7 +80,8 @@ async function handleYouTube(req, res) {
         });
     } catch (error) {
         console.error('❌ YouTube download error:', error.message);
-        res.status(500).json({ success: false, error: 'Download gagal. Coba lagi' });
+        console.error('❌ Stack:', error.stack);
+        res.status(500).json({ success: false, error: 'Download gagal. Server error: ' + error.message });
     }
 }
 
@@ -103,7 +109,7 @@ async function handleYouTubeAudio(req, res) {
         }
 
         const fileName = (result.result.id || Date.now()) + '.mp3';
-        
+
         await saveHistory(req, url, result.result.title || 'YouTube Audio', 'YouTube Audio', fileName);
 
         res.json({
