@@ -9,16 +9,23 @@ module.exports = async (req, res) => {
         const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 
         // Auto-detect redirect URI based on current host
-        const host = req.headers.host || 'localhost:3000';
+        const host = req.headers.host;
+        if (!host) {
+            console.error('[GitHub OAuth] Host header not found in request');
+            return res.status(500).json({ error: 'Unable to detect host' });
+        }
+
         // For Vercel, x-forwarded-proto will be 'https', for localhost it's undefined (use 'http')
         const protocol = req.headers['x-forwarded-proto'] || 'http';
         const redirect_uri = `${protocol}://${host}/api/auth?action=callback`;
 
         if (!GITHUB_CLIENT_ID) {
-            console.error('GITHUB_CLIENT_ID is not configured');
+            console.error('[GitHub OAuth] GITHUB_CLIENT_ID is not configured');
             return res.status(500).json({ error: 'GitHub Client ID not configured' });
         }
 
+        console.log(`[GitHub OAuth] Host: ${host}`);
+        console.log(`[GitHub OAuth] Protocol: ${protocol}`);
         console.log(`[GitHub OAuth] Redirect URI: ${redirect_uri}`);
 
         const params = new URLSearchParams({
