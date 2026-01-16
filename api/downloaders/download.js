@@ -85,7 +85,7 @@ async function handleYouTube(req, res) {
                 });
             }
         } catch (e) {
-            console.error(`YTDL fallback error:`, e.message);
+            console.error(`[YTDL Fallback Video] Error:`, e.message);
         }
 
         // Then try savetube for requested/alternative qualities
@@ -115,13 +115,13 @@ async function handleYouTube(req, res) {
                     });
                 }
             } catch (e) {
-                console.error(`Savetube ${q} error:`, e.message);
+                console.error(`[SaveTube Video ${q}p] Error:`, e.message);
             }
         }
 
         // Final fallback y2mate
         try {
-            const y2mateResult = await ythd(url);
+            const y2mateResult = await ythd(url, quality);
             await saveHistory(req, url, y2mateResult.title || 'YouTube Video', 'YouTube', `${y2mateResult.videoId || Date.now()}.mp4`);
             {
                 const fileName = `${y2mateResult.videoId || Date.now()}.mp4`;
@@ -136,20 +136,21 @@ async function handleYouTube(req, res) {
                     streamUrl: streamUrl,
                     autoDownloadUrl: autoDownloadUrl,
                     fileName: fileName,
-                    quality: '720p',
+                    quality: `${quality}p`,
                     duration: 0,
                     source: 'y2mate'
                 });
             }
         } catch (err) {
+            console.error(`[Y2mate Video] Final fallback error:`, err.message);
             return res.json({
                 success: false,
-                error: 'Download gagal dari semua sumber.',
+                error: 'Download gagal dari semua sumber. Silakan coba lagi nanti.',
                 debug: {
                     platform: 'YouTube',
                     url,
                     quality,
-                    errors: ['YTDL failed', 'SaveTube failed', 'Y2mate failed'].filter(Boolean)
+                    lastError: err.message
                 }
             });
         }
@@ -198,7 +199,7 @@ async function handleYouTubeAudio(req, res) {
                 });
             }
         } catch (e) {
-            console.error('YTDL audio fallback error:', e.message);
+            console.error('[YTDL Fallback Audio] Error:', e.message);
         }
 
         // Then try SaveTube with mp3
@@ -226,7 +227,7 @@ async function handleYouTubeAudio(req, res) {
                 });
             }
         } catch (e) {
-            console.error('SaveTube audio error:', e.message);
+            console.error('[SaveTube Audio] Error:', e.message);
         }
 
         try {
@@ -250,8 +251,17 @@ async function handleYouTubeAudio(req, res) {
                     source: 'y2mate'
                 });
             }
-        } catch (_) {
-            return res.json({ success: false, error: 'Download audio gagal.' });
+        } catch (err) {
+            console.error('[Y2mate Audio] Final fallback error:', err.message);
+            return res.json({
+                success: false,
+                error: 'Download audio gagal dari semua sumber. Silakan coba lagi nanti.',
+                debug: {
+                    platform: 'YouTube Audio',
+                    url,
+                    lastError: err.message
+                }
+            });
         }
     } catch (error) {
         console.error('❌ YouTube audio download error:', error.message);
