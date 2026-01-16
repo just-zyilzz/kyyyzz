@@ -110,7 +110,7 @@ async function handleYouTube(req, res) {
                 source: 'y2mate'
             });
         } catch (_) {
-            return res.status(500).json({
+            return res.json({
                 success: false,
                 error: 'Download gagal dari semua sumber. Coba lagi nanti.'
             });
@@ -154,7 +154,7 @@ async function handleYouTube(req, res) {
                 });
             } catch (y2mateError) {
                 console.error(`[YouTube Video] Y2mate also failed:`, y2mateError.message);
-                return res.status(500).json({
+                return res.json({
                     success: false,
                     error: 'Download gagal dari semua sumber. Coba lagi nanti.'
                 });
@@ -233,7 +233,7 @@ async function handleYouTubeAudio(req, res) {
                 source: 'y2mate'
             });
         } catch (_) {
-            return res.status(500).json({
+            return res.json({
                 success: false,
                 error: 'Download gagal dari semua sumber. Coba lagi nanti.'
             });
@@ -283,7 +283,7 @@ async function handleYouTubeAudio(req, res) {
                 });
             } catch (y2mateError) {
                 console.error(`[YouTube Audio] Y2mate also failed:`, y2mateError.message);
-                return res.status(500).json({
+                return res.json({
                     success: false,
                     error: 'Download gagal dari semua sumber. Coba lagi nanti.'
                 });
