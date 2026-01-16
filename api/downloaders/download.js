@@ -61,6 +61,7 @@ async function handleYouTube(req, res) {
 
     try {
         console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}`);
+        const ytCookiesPresent = !!YTFallback.loadCookies();
 
         // Priority 1: Try SaveTube (best for HD quality)
         const qualitiesToTry = quality === '1080' ? ['1080', '720'] : [quality];
@@ -112,7 +113,8 @@ async function handleYouTube(req, res) {
                     fileName: fileName,
                     quality: fallbackResult.quality || quality,
                     duration: fallbackResult.duration || 0,
-                    source: 'ytdl-fallback'
+                    source: 'ytdl-fallback',
+                    cookiesUsed: !!fallbackResult.hasCookies
                 });
             }
         } catch (e) {
@@ -150,7 +152,8 @@ async function handleYouTube(req, res) {
                     platform: 'YouTube',
                     url,
                     quality,
-                    lastError: err.message
+                    lastError: err.message,
+                    cookiesDetected: ytCookiesPresent
                 }
             });
         }
