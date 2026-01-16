@@ -674,16 +674,6 @@ async function handleUrlDownload(url) {
 
     resultDiv.style.display = 'block';
 
-    // Save to history (localStorage)
-    if (metadata.title || metadata.author) {
-      const title = metadata.title || 'Untitled';
-      const thumbnail = metadata.thumbnail || metadata.thumbnailUrl || null;
-      // Check if saveToHistory is defined (from auth-handler.js)
-      if (typeof saveToHistory === 'function') {
-        saveToHistory(platform, title, thumbnail);
-      }
-    }
-
     // Add progressive loading to result thumbnails
     const resultImg = resultDiv.querySelector('img');
     if (resultImg) {
@@ -860,17 +850,23 @@ async function download(url, format, platform) {
       throw new Error('Platform tidak didukung');
     }
 
-    const res = await fetch(endpoint, {
+    const res = await fetchWithRetry(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    });
+    }, 1, 15000);
 
-    if (!res.ok) {
-      throw new Error('Network response was not ok: ' + res.statusText);
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      const text = await res.text().catch(() => '');
+      throw new Error(text || ('Network error ' + res.status + ' ' + res.statusText));
     }
 
-    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Gagal download');
+    }
 
     if (data.success) {
       const downloadUrl = data.downloadUrl;
@@ -907,7 +903,7 @@ async function download(url, format, platform) {
         } else if (platform === 'Instagram') {
           proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
         } else if (platform === 'Pinterest') {
-          primaryUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
+          proxyUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
         }
 
         const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
