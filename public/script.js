@@ -895,23 +895,42 @@ async function download(url, format, platform) {
       if (downloadUrl) {
         popup.textContent = '⏳ Starting...';
 
-        let primaryUrl = downloadUrl;
-        let proxyUrl = null;
+        if (platform === 'YouTube') {
+          const streamUrl = data.streamUrl || downloadUrl;
+          const autoDownloadUrl = data.autoDownloadUrl || downloadUrl;
 
-        if (platform === 'TikTok' || platform === 'Douyin') {
-          proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
-        } else if (platform === 'Instagram') {
-          proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
-        } else if (platform === 'Pinterest') {
-          proxyUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
-        }
+          try {
+            window.open(streamUrl, '_blank');
+          } catch {}
 
-        const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
+          const a = document.createElement('a');
+          a.href = autoDownloadUrl;
+          a.download = fileName;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
 
-        if (downloaded) {
-          popup.textContent = '✅ Done!';
+          popup.textContent = '✅ Playback & auto-download started!';
         } else {
-          popup.textContent = '✅ Opened!';
+          let primaryUrl = downloadUrl;
+          let proxyUrl = null;
+
+          if (platform === 'TikTok' || platform === 'Douyin') {
+            proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
+          } else if (platform === 'Instagram') {
+            proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
+          } else if (platform === 'Pinterest') {
+            proxyUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
+          }
+
+          const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
+
+          if (downloaded) {
+            popup.textContent = '✅ Done!';
+          } else {
+            popup.textContent = '✅ Opened!';
+          }
         }
 
         popup.className = 'popup show popup-success';

@@ -214,6 +214,76 @@ async function handleTikTokProxy(req, res) {
     }
 }
 
+// ======================== YOUTUBE PROXY ========================
+async function handleYouTubeProxy(req, res) {
+    const { url, type, download, filename } = req.query;
+
+    if (!url) {
+        return res.status(400).json({ success: false, error: 'URL parameter required' });
+    }
+
+    try {
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.youtube.com/',
+            'Accept': '*/*'
+        };
+
+        if (req.headers.range) {
+            headers.Range = req.headers.range;
+        }
+
+        const response = await axios({
+            method: 'GET',
+            url: url,
+            responseType: 'stream',
+            headers,
+            timeout: 60000,
+            maxRedirects: 5,
+            validateStatus: () => true
+        });
+
+        if (response.status >= 400) {
+            return res.status(response.status).json({ success: false, error: 'Failed to fetch media' });
+        }
+
+        let contentType = response.headers['content-type'] || 'application/octet-stream';
+
+        if (type === 'audio' && !contentType.includes('audio')) {
+            contentType = 'audio/mpeg';
+        } else if (type === 'video' && !contentType.includes('video')) {
+            contentType = 'video/mp4';
+        }
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Accept-Ranges', response.headers['accept-ranges'] || 'bytes');
+        if (response.headers['content-length']) {
+            res.setHeader('Content-Length', response.headers['content-length']);
+        }
+        if (req.headers.range && response.status === 206) {
+            const cr = response.headers['content-range'];
+            if (cr) res.setHeader('Content-Range', cr);
+            res.statusCode = 206;
+        }
+
+        if (download === 'true') {
+            const name = filename || (type === 'audio' ? 'audio.mp3' : 'video.mp4');
+            res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+        } else {
+            res.setHeader('Content-Disposition', 'inline');
+        }
+
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');
+
+        response.data.pipe(res);
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'YouTube proxy error: ' + error.message });
+    }
+}
+
 // ======================== INSTAGRAM PROXY ========================
 async function handleInstagramProxy(req, res) {
     const { url, type } = req.query;
@@ -316,10 +386,15 @@ module.exports = async (req, res) => {
                 return res.status(405).json({ success: false, error: 'Proxy endpoints only support GET' });
             }
             return handleInstagramProxy(req, res);
+        case 'yt-proxy':
+            if (req.method !== 'GET') {
+                return res.status(405).json({ success: false, error: 'Proxy endpoints only support GET' });
+            }
+            return handleYouTubeProxy(req, res);
         default:
             return res.status(400).json({
                 success: false,
-                error: 'Action tidak valid. Gunakan: search, thumbnail, pinterest-search, tiktok-proxy, instagram-proxy'
+                error: 'Action tidak valid. Gunakan: search, thumbnail, pinterest-search, tiktok-proxy, instagram-proxy, yt-proxy'
             });
     }
 };

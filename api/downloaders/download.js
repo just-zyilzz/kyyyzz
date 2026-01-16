@@ -45,7 +45,10 @@ async function saveHistory(req, url, title, platform, filename) {
 // ======================== YOUTUBE VIDEO ========================
 async function handleYouTube(req, res) {
     const url = req.method === 'POST' ? req.body.url : req.query.url;
-    const quality = req.method === 'POST' ? (req.body.quality || '720') : (req.query.quality || '720');
+    let quality = req.method === 'POST' ? (req.body.quality || '1080') : (req.query.quality || '1080');
+
+    // Sanitasi input quality (hapus 'p' jika ada)
+    if (quality) quality = quality.toString().replace('p', '');
 
     if (!url) {
         return res.status(400).json({ success: false, error: 'URL tidak boleh kosong' });
@@ -59,107 +62,93 @@ async function handleYouTube(req, res) {
     try {
         console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}`);
 
+        // Try savetube first with 1080 then 720
+        const qualitiesToTry = quality === '1080' ? ['1080', '720'] : [quality];
+        
+        for (const q of qualitiesToTry) {
+            try {
+                const result = await savetube.download(url, q);
+                if (result.status && result.result) {
+                    const fileName = (result.result.id || Date.now()) + '.mp4';
+                    await saveHistory(req, url, result.result.title || 'YouTube Video', 'YouTube', fileName);
+
+                    const sourceUrl = result.result.download;
+                    const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
+                    const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
+
+                    return res.json({
+                        success: true,
+                        title: result.result.title || 'YouTube Video',
+                        thumbnail: result.result.thumbnail || null,
+                        downloadUrl: streamUrl,
+                        streamUrl: streamUrl,
+                        autoDownloadUrl: autoDownloadUrl,
+                        fileName: fileName,
+                        quality: result.result.quality || q,
+                        duration: result.result.duration || 0,
+                        source: 'savetube'
+                    });
+                }
+            } catch (e) {
+                console.error(`Savetube ${q} error:`, e.message);
+            }
+        }
+
+        // Fallback to ytdl-fallback
         try {
             const fallbackResult = await YTFallback.mp4(url, quality);
-
             await saveHistory(req, url, fallbackResult.title || 'YouTube Video', 'YouTube', `${fallbackResult.videoId || Date.now()}.mp4`);
-
-            return res.json({
-                success: true,
-                title: fallbackResult.title || 'YouTube Video',
-                thumbnail: fallbackResult.thumbnail || null,
-                downloadUrl: fallbackResult.downloadUrl,
-                fileName: `${fallbackResult.videoId || Date.now()}.mp4`,
-                quality: fallbackResult.quality || quality,
-                duration: fallbackResult.duration || 0,
-                source: 'ytdl-fallback'
-            });
+            {
+                const fileName = `${fallbackResult.videoId || Date.now()}.mp4`;
+                const sourceUrl = fallbackResult.downloadUrl;
+                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
+                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
+                return res.json({
+                    success: true,
+                    title: fallbackResult.title || 'YouTube Video',
+                    thumbnail: fallbackResult.thumbnail || null,
+                    downloadUrl: streamUrl,
+                    streamUrl: streamUrl,
+                    autoDownloadUrl: autoDownloadUrl,
+                    fileName: fileName,
+                    quality: fallbackResult.quality || quality,
+                    duration: fallbackResult.duration || 0,
+                    source: 'ytdl-fallback'
+                });
+            }
         } catch (_) {}
 
-        const result = await savetube.download(url, quality);
-
-        if (result.status && result.result) {
-            const fileName = (result.result.id || Date.now()) + '.mp4';
-            await saveHistory(req, url, result.result.title || 'YouTube Video', 'YouTube', fileName);
-
-            return res.json({
-                success: true,
-                title: result.result.title || 'YouTube Video',
-                thumbnail: result.result.thumbnail || null,
-                downloadUrl: result.result.download,
-                fileName: fileName,
-                quality: result.result.quality || quality,
-                duration: result.result.duration || 0,
-                source: 'savetube'
-            });
-        }
-
+        // Final fallback y2mate
         try {
             const y2mateResult = await ythd(url);
-
             await saveHistory(req, url, y2mateResult.title || 'YouTube Video', 'YouTube', `${y2mateResult.videoId || Date.now()}.mp4`);
-
-            return res.json({
-                success: true,
-                title: y2mateResult.title || 'YouTube Video',
-                thumbnail: y2mateResult.thumbnail || null,
-                downloadUrl: y2mateResult.downloadUrl,
-                fileName: `${y2mateResult.videoId || Date.now()}.mp4`,
-                quality: '720p',
-                duration: 0,
-                source: 'y2mate'
-            });
-        } catch (_) {
-            return res.json({
-                success: false,
-                error: 'Download gagal dari semua sumber. Coba lagi nanti.'
-            });
-        }
-    } catch (error) {
-        console.error('❌ YouTube download error:', error.message);
-        console.error('❌ Stack:', error.stack);
-
-        // Try fallback on exception
-        try {
-            console.log(`[YouTube Video] Exception caught, trying ytdl-core fallback...`);
-            const fallbackResult = await YTFallback.mp4(url, quality);
-
-            return res.json({
-                success: true,
-                title: fallbackResult.title || 'YouTube Video',
-                thumbnail: fallbackResult.thumbnail || null,
-                downloadUrl: fallbackResult.downloadUrl,
-                fileName: `${fallbackResult.videoId || Date.now()}.mp4`,
-                quality: fallbackResult.quality || quality,
-                duration: fallbackResult.duration || 0,
-                source: 'ytdl-fallback'
-            });
-        } catch (fallbackError) {
-            console.error(`[YouTube Video] YTDL fallback also failed:`, fallbackError.message);
-
-            // Try y2mate as last resort
-            try {
-                console.log(`[YouTube Video] Trying y2mate as last fallback...`);
-                const y2mateResult = await ythd(url);
-
+            {
+                const fileName = `${y2mateResult.videoId || Date.now()}.mp4`;
+                const sourceUrl = y2mateResult.downloadUrl;
+                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
+                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
                 return res.json({
                     success: true,
                     title: y2mateResult.title || 'YouTube Video',
                     thumbnail: y2mateResult.thumbnail || null,
-                    downloadUrl: y2mateResult.downloadUrl,
-                    fileName: `${y2mateResult.videoId || Date.now()}.mp4`,
+                    downloadUrl: streamUrl,
+                    streamUrl: streamUrl,
+                    autoDownloadUrl: autoDownloadUrl,
+                    fileName: fileName,
                     quality: '720p',
                     duration: 0,
                     source: 'y2mate'
                 });
-            } catch (y2mateError) {
-                console.error(`[YouTube Video] Y2mate also failed:`, y2mateError.message);
-                return res.json({
-                    success: false,
-                    error: 'Download gagal dari semua sumber. Coba lagi nanti.'
-                });
             }
+        } catch (err) {
+            return res.json({
+                success: false,
+                error: 'Download gagal dari semua sumber.'
+            });
         }
+    } catch (error) {
+        console.error('❌ YouTube download error:', error.message);
+        return res.json({ success: false, error: 'Download gagal.' });
     }
 }
 
@@ -179,116 +168,82 @@ async function handleYouTubeAudio(req, res) {
     try {
         console.log(`[YouTube Audio] Requesting download for: ${url}`);
 
-        try {
-            const fallbackResult = await YTFallback.mp3(url);
-            const fileName = `${fallbackResult.videoId || Date.now()}.mp3`;
-
-            await saveHistory(req, url, fallbackResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
-
-            return res.json({
-                success: true,
-                title: fallbackResult.title || 'YouTube Audio',
-                thumbnail: fallbackResult.thumbnail || null,
-                downloadUrl: fallbackResult.downloadUrl,
-                fileName: fileName,
-                format: 'mp3',
-                duration: fallbackResult.duration || 0,
-                source: 'ytdl-fallback'
-            });
-        } catch (_) {}
-
-        const result = await savetube.download(url, 'mp3');
+        // Try savetube with max audio quality
+        const result = await savetube.download(url, 'flac'); // FLAC for maxres audio
 
         if (result.status && result.result) {
             const fileName = (result.result.id || Date.now()) + '.mp3';
-
             await saveHistory(req, url, result.result.title || 'YouTube Audio', 'YouTube Audio', fileName);
+
+            const sourceUrl = result.result.download;
+            const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio`;
+            const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
 
             return res.json({
                 success: true,
                 title: result.result.title || 'YouTube Audio',
                 thumbnail: result.result.thumbnail || null,
-                downloadUrl: result.result.download,
+                downloadUrl: streamUrl,
+                streamUrl: streamUrl,
+                autoDownloadUrl: autoDownloadUrl,
                 fileName: fileName,
-                format: 'mp3',
+                format: result.result.format || 'flac',
                 duration: result.result.duration || 0,
                 source: 'savetube'
             });
         }
 
+        // Fallbacks
+        try {
+            const fallbackResult = await YTFallback.mp3(url);
+            const fileName = `${fallbackResult.videoId || Date.now()}.mp3`;
+            await saveHistory(req, url, fallbackResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
+            {
+                const sourceUrl = fallbackResult.downloadUrl;
+                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio`;
+                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
+                return res.json({
+                    success: true,
+                    title: fallbackResult.title || 'YouTube Audio',
+                    thumbnail: fallbackResult.thumbnail || null,
+                    downloadUrl: streamUrl,
+                    streamUrl: streamUrl,
+                    autoDownloadUrl: autoDownloadUrl,
+                    fileName: fileName,
+                    format: 'mp3',
+                    duration: fallbackResult.duration || 0,
+                    source: 'ytdl-fallback'
+                });
+            }
+        } catch (_) {}
+
         try {
             const y2mateResult = await ytmp3(url);
             const fileName = `${y2mateResult.videoId || Date.now()}.mp3`;
-
             await saveHistory(req, url, y2mateResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
-
-            return res.json({
-                success: true,
-                title: y2mateResult.title || 'YouTube Audio',
-                thumbnail: y2mateResult.thumbnail || null,
-                downloadUrl: y2mateResult.downloadUrl,
-                fileName: fileName,
-                format: 'mp3',
-                duration: 0,
-                source: 'y2mate'
-            });
-        } catch (_) {
-            return res.json({
-                success: false,
-                error: 'Download gagal dari semua sumber. Coba lagi nanti.'
-            });
-        }
-    } catch (error) {
-        console.error('❌ YouTube audio download error:', error.message);
-        console.error('❌ Stack:', error.stack);
-
-        // Try fallback on exception
-        try {
-            console.log(`[YouTube Audio] Exception caught, trying ytdl-core fallback...`);
-            const fallbackResult = await YTFallback.mp3(url);
-            const fileName = `${fallbackResult.videoId || Date.now()}.mp3`;
-
-            await saveHistory(req, url, fallbackResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
-
-            return res.json({
-                success: true,
-                title: fallbackResult.title || 'YouTube Audio',
-                thumbnail: fallbackResult.thumbnail || null,
-                downloadUrl: fallbackResult.downloadUrl,
-                fileName: fileName,
-                format: 'mp3',
-                duration: fallbackResult.duration || 0,
-                source: 'ytdl-fallback'
-            });
-        } catch (fallbackError) {
-            console.error(`[YouTube Audio] YTDL fallback also failed:`, fallbackError.message);
-
-            // Try y2mate as last resort
-            try {
-                console.log(`[YouTube Audio] Trying y2mate as last fallback...`);
-                const y2mateResult = await ytmp3(url);
-                const fileName = `${y2mateResult.videoId || Date.now()}.mp3`;
-
-                await saveHistory(req, url, y2mateResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
-
+            {
+                const sourceUrl = y2mateResult.downloadUrl;
+                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio`;
+                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
                 return res.json({
                     success: true,
                     title: y2mateResult.title || 'YouTube Audio',
                     thumbnail: y2mateResult.thumbnail || null,
-                    downloadUrl: y2mateResult.downloadUrl,
+                    downloadUrl: streamUrl,
+                    streamUrl: streamUrl,
+                    autoDownloadUrl: autoDownloadUrl,
                     fileName: fileName,
                     format: 'mp3',
                     duration: 0,
                     source: 'y2mate'
                 });
-            } catch (y2mateError) {
-                console.error(`[YouTube Audio] Y2mate also failed:`, y2mateError.message);
-                return res.json({
-                    success: false,
-                    error: 'Download gagal dari semua sumber. Coba lagi nanti.'
-                });
             }
+        } catch (_) {
+            return res.json({ success: false, error: 'Download audio gagal.' });
         }
+    } catch (error) {
+        console.error('❌ YouTube audio download error:', error.message);
+        return res.json({ success: false, error: 'Download audio gagal.' });
     }
 }
 

@@ -69,6 +69,27 @@ const server = http.createServer(async (req, res) => {
                         });
                     }
 
+                    // Attach minimal Express-like helpers
+                    res.status = (code) => {
+                        res.statusCode = code;
+                        return res;
+                    };
+                    res.json = (data) => {
+                        if (!res.headersSent) {
+                            res.writeHead(res.statusCode || 200, { 'Content-Type': 'application/json' });
+                        }
+                        res.end(JSON.stringify(data));
+                    };
+                    res.send = (data) => {
+                        if (typeof data === 'object' && data !== null) {
+                            return res.json(data);
+                        }
+                        if (!res.headersSent) {
+                            res.writeHead(res.statusCode || 200, { 'Content-Type': 'text/plain' });
+                        }
+                        res.end(String(data));
+                    };
+
                     // Call the API handler
                     await handler(req, res);
                     return;
