@@ -16,8 +16,7 @@
  * Usage: GET/POST /api/download?platform=youtube&url=...
  */
 
-const savetube = require('../../lib/savetube');
-const { savefrom } = require('../../lib/savefrom');
+const { ytdl } = require('../../lib/savefrom');
 const { tiktokDownloaderVideo } = require('../../lib/tiktok');
 const Instagram = require('../../lib/instagram');
 const { instagramDownload } = require('../../lib/scrapers');
@@ -71,91 +70,41 @@ async function handleYouTube(req, res) {
     try {
         console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}, env: ${isServerless ? 'serverless' : 'node-server'}`);
 
-        // Priority 1: Try SaveTube (best for HD quality)
-        const qualitiesToTry = quality === '1080' ? ['1080', '720'] : [quality];
-        for (const q of qualitiesToTry) {
-            try {
-                const result = await savetube.download(url, q);
-                if (result.status && result.result) {
-                    const fileName = (result.result.id || Date.now()) + '.mp4';
-                    await saveHistory(req, url, result.result.title || 'YouTube Video', 'YouTube', fileName);
+        const targetQuality = quality || '720';
+        const info = await ytdl(url, 'mp4', targetQuality);
 
-                    const sourceUrl = result.result.download;
-                    const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
-                    const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
+        const fileName = info.filename || `${Date.now()}.mp4`;
+        await saveHistory(req, url, info.title || 'YouTube Video', 'YouTube', fileName);
 
-                    return res.json({
-                        success: true,
-                        title: result.result.title || 'YouTube Video',
-                        thumbnail: result.result.thumbnail || null,
-                        downloadUrl: streamUrl,
-                        streamUrl: streamUrl,
-                        autoDownloadUrl: autoDownloadUrl,
-                        fileName: fileName,
-                        quality: result.result.quality || q,
-                        duration: result.result.duration || 0,
-                        source: 'savetube'
-                    });
-                }
-            } catch (e) {
-                console.error(`[SaveTube Video ${q}p] Error:`, e.message);
-            }
-        }
-
-        // Priority 2: Try SaveFrom.net
-        try {
-            const savefromResult = await savefrom(url);
-            if (savefromResult) {
-                // Determine download URL
-                let downloadUrl = null;
-                let qualityLabel = quality + 'p';
-
-                if (savefromResult.url && Array.isArray(savefromResult.url)) {
-                    // If array of formats, find best match
-                    const best = savefromResult.url.find(u => u.quality == quality) || savefromResult.url[0];
-                    downloadUrl = best.url;
-                    qualityLabel = best.quality ? best.quality + 'p' : qualityLabel;
-                } else if (savefromResult.url) {
-                    downloadUrl = savefromResult.url;
-                }
-
-                if (downloadUrl) {
-                    const fileName = `${Date.now()}.mp4`;
-                    await saveHistory(req, url, savefromResult.title || 'YouTube Video', 'YouTube', fileName);
-                    const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&type=video`;
-                    const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
-
-                    return res.json({
-                        success: true,
-                        title: savefromResult.title || 'YouTube Video',
-                        thumbnail: savefromResult.thumb || savefromResult.thumbnail || null,
-                        downloadUrl: streamUrl,
-                        streamUrl: streamUrl,
-                        autoDownloadUrl: autoDownloadUrl,
-                        fileName: fileName,
-                        quality: qualityLabel,
-                        duration: savefromResult.duration || 0,
-                        source: 'savefrom'
-                    });
-                }
-            }
-        } catch (e) {
-            console.error(`[SaveFrom Video] Error:`, e.message);
-        }
+        const sourceUrl = info.url;
+        const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video`;
+        const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=video&download=true&filename=${encodeURIComponent(fileName)}`;
 
         return res.json({
+            success: true,
+            title: info.title || 'YouTube Video',
+            thumbnail: info.thumbnail || null,
+            downloadUrl: streamUrl,
+            streamUrl: streamUrl,
+            autoDownloadUrl: autoDownloadUrl,
+            fileName: fileName,
+            quality: info.quality || targetQuality,
+            duration: info.duration || 0,
+            source: info.source || 'ytmp3'
+        });
+    } catch (error) {
+        console.error('❌ YouTube download error:', error.message);
+        return res.json({
             success: false,
-            error: 'Download gagal dari semua sumber. Silakan coba lagi nanti.',
+            error: 'Download gagal.',
             debug: {
                 platform: 'YouTube',
                 url,
                 quality,
-                env: isServerless ? 'serverless' : 'node-server'
+                env: isServerless ? 'serverless' : 'node-server',
+                message: error.message
             }
         });
-    } catch (error) {
-        console.error('❌ YouTube download error:', error.message);
-        return res.json({ success: false, error: 'Download gagal.' });
     }
 }
 
@@ -176,86 +125,39 @@ async function handleYouTubeAudio(req, res) {
     try {
         console.log(`[YouTube Audio] Requesting download for: ${url}`);
 
-        // Priority 1: Try SaveTube with mp3
-        try {
-            const result = await savetube.download(url, 'mp3');
-            if (result.status && result.result) {
-                const fileName = (result.result.id || Date.now()) + '.mp3';
-                await saveHistory(req, url, result.result.title || 'YouTube Audio', 'YouTube Audio', fileName);
+        const bitrate = '320';
+        const info = await ytdl(url, 'mp3', bitrate);
 
-                const sourceUrl = result.result.download;
-                const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio`;
-                const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
+        const fileName = info.filename || `${Date.now()}.mp3`;
+        await saveHistory(req, url, info.title || 'YouTube Audio', 'YouTube Audio', fileName);
 
-                return res.json({
-                    success: true,
-                    title: result.result.title || 'YouTube Audio',
-                    thumbnail: result.result.thumbnail || null,
-                    downloadUrl: streamUrl,
-                    streamUrl: streamUrl,
-                    autoDownloadUrl: autoDownloadUrl,
-                    fileName: fileName,
-                    format: result.result.format || 'mp3',
-                    duration: result.result.duration || 0,
-                    source: 'savetube'
-                });
-            }
-        } catch (e) {
-            console.error('[SaveTube Audio] Error:', e.message);
-        }
-
-        // Priority 2: Try SaveFrom.net
-        try {
-            const savefromResult = await savefrom(url);
-            if (savefromResult) {
-                // For audio, we look for audio format or just use video and proxy converts header
-                let downloadUrl = null;
-
-                if (savefromResult.url && Array.isArray(savefromResult.url)) {
-                    // Try to find audio only or lowest quality video?
-                    // SaveFrom usually provides video. We can use any video URL.
-                    // Ideally check for 'audio' type but assuming video is fine for proxy
-                    const best = savefromResult.url[0];
-                    downloadUrl = best.url;
-                } else if (savefromResult.url) {
-                    downloadUrl = savefromResult.url;
-                }
-
-                if (downloadUrl) {
-                    const fileName = `${Date.now()}.mp3`;
-                    await saveHistory(req, url, savefromResult.title || 'YouTube Audio', 'YouTube Audio', fileName);
-                    const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&type=audio`;
-                    const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
-
-                    return res.json({
-                        success: true,
-                        title: savefromResult.title || 'YouTube Audio',
-                        thumbnail: savefromResult.thumb || savefromResult.thumbnail || null,
-                        downloadUrl: streamUrl,
-                        streamUrl: streamUrl,
-                        autoDownloadUrl: autoDownloadUrl,
-                        fileName: fileName,
-                        format: 'mp3',
-                        duration: savefromResult.duration || 0,
-                        source: 'savefrom'
-                    });
-                }
-            }
-        } catch (e) {
-            console.error('[SaveFrom Audio] Error:', e.message);
-        }
+        const sourceUrl = info.url;
+        const streamUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio`;
+        const autoDownloadUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(sourceUrl)}&type=audio&download=true&filename=${encodeURIComponent(fileName)}`;
 
         return res.json({
-            success: false,
-            error: 'Download audio gagal dari semua sumber. Silakan coba lagi nanti.',
-            debug: {
-                platform: 'YouTube Audio',
-                url
-            }
+            success: true,
+            title: info.title || 'YouTube Audio',
+            thumbnail: info.thumbnail || null,
+            downloadUrl: streamUrl,
+            streamUrl: streamUrl,
+            autoDownloadUrl: autoDownloadUrl,
+            fileName: fileName,
+            format: 'mp3',
+            duration: info.duration || 0,
+            source: info.source || 'ytmp3'
         });
     } catch (error) {
         console.error('❌ YouTube audio download error:', error.message);
-        return res.json({ success: false, error: 'Download audio gagal.' });
+        return res.json({
+            success: false,
+            error: 'Download audio gagal.',
+            debug: {
+                platform: 'YouTube Audio',
+                url,
+                message: error.message
+            }
+        });
     }
 }
 

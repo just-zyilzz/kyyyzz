@@ -243,7 +243,9 @@ async function handleYouTubeProxy(req, res) {
         const allowed = (
             host === 'googlevideo.com' || host.endsWith('.googlevideo.com') ||
             host === 'youtube.com' || host.endsWith('.youtube.com') ||
-            host === 'ytimg.com' || host.endsWith('.ytimg.com')
+            host === 'ytimg.com' || host.endsWith('.ytimg.com') ||
+            host === 'savetube.me' || host.endsWith('.savetube.me') ||
+            host === 'savetube.vip' || host.endsWith('.savetube.vip')
         );
 
         if (!allowed) {
