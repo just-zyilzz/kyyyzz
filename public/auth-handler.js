@@ -103,16 +103,13 @@ function showUserProfile(user) {
         logoutBtn.addEventListener('click', logout);
     }
 
-    // Setup history button (in sidebar)
-    const historyBtn = document.getElementById('historyBtn');
-    if (historyBtn) {
-        historyBtn.addEventListener('click', () => {
-            // Close sidebar first
-            document.getElementById('sidebarMenu').classList.remove('active');
-            document.getElementById('sidebarOverlay').classList.remove('active');
-            // Show history
-            showHistory();
-        });
+    // Auto-load and show history inline when user logs in
+    loadInlineHistory();
+
+    // Setup clear history button
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', clearHistory);
     }
 }
 
@@ -135,6 +132,11 @@ async function logout() {
         await fetch('/api/auth?action=logout', { method: 'GET' });
         currentUser = null;
         showLoginButton();
+        // Hide history section on logout
+        const historySection = document.getElementById('historySection');
+        if (historySection) {
+            historySection.style.display = 'none';
+        }
         showPopup('👋 Logged out successfully', 'success', 2000);
     } catch (error) {
         console.error('Logout error:', error);
@@ -143,16 +145,17 @@ async function logout() {
 }
 
 /**
- * Show download history modal
+ * Load and display history inline below container
  */
-async function showHistory() {
-    const modal = document.getElementById('historyModal');
+async function loadInlineHistory() {
+    const historySection = document.getElementById('historySection');
     const historyList = document.getElementById('historyList');
 
-    if (!modal) return;
+    if (!historySection || !historyList) return;
 
-    modal.style.display = 'flex';
-    historyList.innerHTML = '<p>Loading...</p>';
+    // Show history section
+    historySection.style.display = 'block';
+    historyList.innerHTML = '<p class="history-loading">Loading...</p>';
 
     try {
         const res = await fetch('/api/user?action=history');
@@ -160,29 +163,47 @@ async function showHistory() {
 
         if (data.success && data.history && data.history.length > 0) {
             historyList.innerHTML = data.history.map(item => `
-        <div style="padding: 12px; border-bottom: 1px solid #eee;">
-          <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.title || 'Untitled'}</div>
-          <div style="font-size: 12px; color: #666;">
-            <span style="background: #667eea; color: white; padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${item.platform}</span>
-            <span>${new Date(item.timestamp).toLocaleString('id-ID')}</span>
-          </div>
-        </div>
-      `).join('');
+                <div class="history-item">
+                    ${item.thumbnail ? `<img src="${item.thumbnail}" alt="${item.title || 'Thumbnail'}" loading="lazy">` : ''}
+                    <div class="history-item-details">
+                        <h4 class="history-item-title">${item.title || 'Untitled'}</h4>
+                        <p class="history-item-meta">
+                            <span style="background: var(--primary-gradient); color: white; padding: 4px 10px; border-radius: 8px; margin-right: 8px; font-size: 0.8rem; font-weight: 600;">${item.platform}</span>
+                            <span>${new Date(item.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        </p>
+                    </div>
+                </div>
+            `).join('');
         } else {
-            historyList.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No download history yet</p>';
+            historyList.innerHTML = '<p class="history-loading">📭 No download history yet. Start downloading to see your history here!</p>';
         }
     } catch (error) {
         console.error('Failed to load history:', error);
-        historyList.innerHTML = '<p style="text-align: center; color: #ff6b6b; padding: 20px;">Failed to load history</p>';
+        historyList.innerHTML = '<p class="history-loading" style="color: #FF453A;">❌ Failed to load history. Please try again later.</p>';
     }
 }
 
-// Close history modal
-document.addEventListener('click', (e) => {
-    const modal = document.getElementById('historyModal');
-    const closeBtn = document.querySelector('.close-modal');
-
-    if (e.target === modal || e.target === closeBtn) {
-        modal.style.display = 'none';
+/**
+ * Clear all download history
+ */
+async function clearHistory() {
+    if (!confirm('Are you sure you want to clear all download history?')) {
+        return;
     }
-});
+
+    try {
+        const res = await fetch('/api/user?action=clear-history', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success) {
+            showPopup('🗑️ History cleared successfully', 'success', 2000);
+            // Reload history
+            loadInlineHistory();
+        } else {
+            showPopup('❌ Failed to clear history', 'error', 3000);
+        }
+    } catch (error) {
+        console.error('Clear history error:', error);
+        showPopup('❌ Failed to clear history', 'error', 3000);
+    }
+}
