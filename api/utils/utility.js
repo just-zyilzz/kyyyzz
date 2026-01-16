@@ -16,7 +16,12 @@
 
 const ytSearch = require('yt-search');
 const axios = require('axios');
+const http = require('node:http');
+const https = require('node:https');
 const { searchPinterest } = require('../../lib/pinterest');
+
+const httpAgent = new http.Agent({ keepAlive: true });
+const httpsAgent = new https.Agent({ keepAlive: true });
 
 // ======================== YOUTUBE SEARCH ========================
 async function handleSearch(req, res) {
@@ -223,62 +228,155 @@ async function handleYouTubeProxy(req, res) {
     }
 
     try {
-        const headers = {
+        let target;
+        try {
+            target = new URL(url);
+        } catch {
+            return res.status(400).json({ success: false, error: 'Invalid url parameter' });
+        }
+
+        if (target.protocol !== 'https:' && target.protocol !== 'http:') {
+            return res.status(400).json({ success: false, error: 'Invalid url protocol' });
+        }
+
+        const host = (target.hostname || '').toLowerCase();
+        const allowed = (
+            host === 'googlevideo.com' || host.endsWith('.googlevideo.com') ||
+            host === 'youtube.com' || host.endsWith('.youtube.com') ||
+            host === 'ytimg.com' || host.endsWith('.ytimg.com')
+        );
+
+        if (!allowed) {
+            return res.status(400).json({ success: false, error: 'URL host not allowed' });
+        }
+
+        const upstreamHeaders = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Referer': 'https://www.youtube.com/',
-            'Accept': '*/*'
+            'Origin': 'https://www.youtube.com',
+            'Accept': '*/*',
+            'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'identity'
         };
 
-        if (req.headers.range) {
-            headers.Range = req.headers.range;
-        }
+        if (req.headers.range) upstreamHeaders.Range = req.headers.range;
+        if (req.headers['if-range']) upstreamHeaders['If-Range'] = req.headers['if-range'];
+        if (req.headers['if-none-match']) upstreamHeaders['If-None-Match'] = req.headers['if-none-match'];
+        if (req.headers['if-modified-since']) upstreamHeaders['If-Modified-Since'] = req.headers['if-modified-since'];
 
-        const response = await axios({
+        const shouldDownload = download === 'true' || download === '1' || download === 'yes';
+        const safeNameRaw = filename || (type === 'audio' ? 'audio.mp3' : 'video.mp4');
+        const safeName = String(safeNameRaw)
+            .replace(/[\r\n]/g, ' ')
+            .replace(/[\\/?%*:|"<>]/g, '_')
+            .slice(0, 180)
+            .trim() || (type === 'audio' ? 'audio.mp3' : 'video.mp4');
+
+        const requestConfig = {
             method: 'GET',
-            url: url,
+            url: target.toString(),
             responseType: 'stream',
-            headers,
-            timeout: 60000,
+            headers: upstreamHeaders,
+            timeout: 0,
             maxRedirects: 5,
-            validateStatus: () => true
-        });
+            validateStatus: () => true,
+            decompress: false,
+            httpAgent,
+            httpsAgent
+        };
 
-        if (response.status >= 400) {
-            return res.status(response.status).json({ success: false, error: 'Failed to fetch media' });
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const isRetryableNetworkError = (err) => {
+            const code = err && err.code;
+            return (
+                code === 'ECONNRESET' ||
+                code === 'ETIMEDOUT' ||
+                code === 'EAI_AGAIN' ||
+                code === 'ENOTFOUND' ||
+                code === 'ECONNREFUSED' ||
+                code === 'EPIPE'
+            );
+        };
+
+        let upstreamResponse;
+        let lastError;
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                upstreamResponse = await axios(requestConfig);
+                const status = upstreamResponse.status;
+                if ((status === 429 || (status >= 500 && status <= 599)) && attempt < 2) {
+                    if (upstreamResponse.data?.destroy) upstreamResponse.data.destroy();
+                    await wait(250 * (attempt + 1));
+                    continue;
+                }
+                break;
+            } catch (err) {
+                lastError = err;
+                if (attempt < 2 && isRetryableNetworkError(err)) {
+                    await wait(250 * (attempt + 1));
+                    continue;
+                }
+                throw err;
+            }
         }
 
-        let contentType = response.headers['content-type'] || 'application/octet-stream';
+        if (!upstreamResponse) throw lastError || new Error('Upstream request failed');
 
-        if (type === 'audio' && !contentType.includes('audio')) {
-            contentType = 'audio/mpeg';
-        } else if (type === 'video' && !contentType.includes('video')) {
-            contentType = 'video/mp4';
+        if (upstreamResponse.status >= 400) {
+            if (upstreamResponse.data?.destroy) upstreamResponse.data.destroy();
+            return res.status(upstreamResponse.status).json({
+                success: false,
+                error: 'Failed to fetch media'
+            });
         }
 
+        const cleanup = () => {
+            if (upstreamResponse?.data?.destroy) {
+                upstreamResponse.data.destroy();
+            }
+        };
+
+        req.on('aborted', cleanup);
+        req.on('close', cleanup);
+        res.on('close', cleanup);
+
+        res.statusCode = upstreamResponse.status;
+
+        const passthroughHeaders = [
+            'accept-ranges',
+            'content-length',
+            'content-range',
+            'etag',
+            'last-modified'
+        ];
+
+        for (const h of passthroughHeaders) {
+            const v = upstreamResponse.headers[h];
+            if (v) res.setHeader(h, v);
+        }
+
+        let contentType = upstreamResponse.headers['content-type'] || 'application/octet-stream';
+        if (type === 'audio' && !String(contentType).includes('audio')) contentType = 'audio/mpeg';
+        if (type === 'video' && !String(contentType).includes('video')) contentType = 'video/mp4';
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Accept-Ranges', response.headers['accept-ranges'] || 'bytes');
-        if (response.headers['content-length']) {
-            res.setHeader('Content-Length', response.headers['content-length']);
-        }
-        if (req.headers.range && response.status === 206) {
-            const cr = response.headers['content-range'];
-            if (cr) res.setHeader('Content-Range', cr);
-            res.statusCode = 206;
-        }
 
-        if (download === 'true') {
-            const name = filename || (type === 'audio' ? 'audio.mp3' : 'video.mp4');
-            res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
-        } else {
-            res.setHeader('Content-Disposition', 'inline');
-        }
-
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Content-Disposition', shouldDownload ? `attachment; filename="${safeName}"` : 'inline');
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Type, Content-Disposition');
 
-        response.data.pipe(res);
+        upstreamResponse.data.on('error', () => {
+            if (!res.headersSent) {
+                res.statusCode = 502;
+            }
+            res.destroy();
+        });
+
+        upstreamResponse.data.pipe(res);
     } catch (error) {
         res.status(500).json({ success: false, error: 'YouTube proxy error: ' + error.message });
     }
