@@ -7,15 +7,19 @@ module.exports = async (req, res) => {
 
     if (action === 'login') {
         const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
-        // Check if we are in dev or prod for redirect URI
-        const host = req.headers.host;
+
+        // Auto-detect redirect URI based on current host
+        const host = req.headers.host || 'localhost:3000';
+        // For Vercel, x-forwarded-proto will be 'https', for localhost it's undefined (use 'http')
         const protocol = req.headers['x-forwarded-proto'] || 'http';
-        const configuredRedirect = process.env.GITHUB_REDIRECT_URI;
-        const redirect_uri = configuredRedirect || `${protocol}://${host}/api/auth?action=callback`;
+        const redirect_uri = `${protocol}://${host}/api/auth?action=callback`;
 
         if (!GITHUB_CLIENT_ID) {
+            console.error('GITHUB_CLIENT_ID is not configured');
             return res.status(500).json({ error: 'GitHub Client ID not configured' });
         }
+
+        console.log(`[GitHub OAuth] Redirect URI: ${redirect_uri}`);
 
         const params = new URLSearchParams({
             client_id: GITHUB_CLIENT_ID,
