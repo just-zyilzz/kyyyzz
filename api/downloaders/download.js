@@ -16,7 +16,8 @@
  * Usage: GET/POST /api/download?platform=youtube&url=...
  */
 
-const { ytdl } = require('../../lib/ytdl');
+const yt1 = require('../../lib/yt1'); // YouTube download with quality options
+const yt2 = require('../../lib/yt2'); // YouTube download alternative API
 const { tiktokDownloaderVideo } = require('../../lib/tiktok');
 const Instagram = require('../../lib/instagram');
 const { instagramDownload } = require('../../lib/scrapers');
@@ -78,15 +79,52 @@ async function handleYouTube(req, res) {
     }
 
     try {
-        console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}, env: ${isServerless ? 'serverless' : 'node-server'}`);
+        console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}`);
 
         const targetQuality = quality || '720';
+        let info;
 
-        // Use increased timeout for serverless environments
-        const info = await Promise.race([
-            ytdl(url, 'mp4', targetQuality),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Processing timeout')), 55000))
-        ]);
+        // Try yt1 first (supports quality selection)
+        try {
+            info = await Promise.race([
+                yt1.ytdl(url, 'mp4', targetQuality),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('yt1 timeout')), 50000))
+            ]);
+            console.log('✅ yt1 success');
+        } catch (yt1Error) {
+            console.log('⚠️ yt1 failed, trying yt2...', yt1Error.message);
+
+            // Fallback to yt2
+            const yt2Data = await Promise.race([
+                yt2.ytdl(url),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('yt2 timeout')), 50000))
+            ]);
+
+            // Find best quality MP4
+            const mp4Formats = yt2Data.formats.filter(f => f.type === 'video' && f.format === 'mp4');
+            if (mp4Formats.length === 0) {
+                throw new Error('No MP4 format available');
+            }
+
+            // Sort by quality (descending)
+            mp4Formats.sort((a, b) => {
+                const qA = parseInt(a.quality) || 0;
+                const qB = parseInt(b.quality) || 0;
+                return qB - qA;
+            });
+
+            const selectedFormat = mp4Formats[0];
+
+            info = {
+                title: yt2Data.title,
+                thumbnail: yt2Data.thumbnail,
+                duration: yt2Data.duration,
+                quality: selectedFormat.quality,
+                url: selectedFormat.url,
+                filename: `${yt2Data.title || Date.now()}.mp4`
+            };
+            console.log('✅ yt2 success (fallback)');
+        }
 
         const fileName = info.filename || `${Date.now()}.mp4`;
         await saveHistory(req, url, info.title || 'YouTube Video', 'YouTube', fileName);
@@ -104,7 +142,7 @@ async function handleYouTube(req, res) {
             fileName: fileName,
             quality: info.quality || targetQuality,
             duration: info.duration || 0,
-            source: info.source || 'ytmp3'
+            uploader: info.uploader || null
         });
     } catch (error) {
         console.error('❌ YouTube download error:', error.message);
@@ -164,11 +202,49 @@ async function handleYouTubeAudio(req, res) {
     try {
         console.log(`[YouTube Audio] Requesting download for: ${url}`);
 
-        // Use increased timeout for serverless environments
-        const info = await Promise.race([
-            ytdl(url, 'mp3', '320'),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Processing timeout')), 55000))
-        ]);
+        let info;
+
+        // Try yt1 first (supports MP3 320kbps)
+        try {
+            info = await Promise.race([
+                yt1.ytdl(url, 'mp3', '320'),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('yt1 timeout')), 50000))
+            ]);
+            console.log('✅ yt1 success (MP3)');
+        } catch (yt1Error) {
+            console.log('⚠️ yt1 failed, trying yt2...', yt1Error.message);
+
+            // Fallback to yt2
+            const yt2Data = await Promise.race([
+                yt2.ytdl(url),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('yt2 timeout')), 50000))
+            ]);
+
+            // Find best quality MP3
+            const mp3Formats = yt2Data.formats.filter(f => f.type === 'audio' && f.format === 'mp3');
+            if (mp3Formats.length === 0) {
+                throw new Error('No MP3 format available');
+            }
+
+            // Sort by quality (descending)
+            mp3Formats.sort((a, b) => {
+                const qA = parseInt(a.quality) || 0;
+                const qB = parseInt(b.quality) || 0;
+                return qB - qA;
+            });
+
+            const selectedFormat = mp3Formats[0];
+
+            info = {
+                title: yt2Data.title,
+                thumbnail: yt2Data.thumbnail,
+                duration: yt2Data.duration,
+                quality: selectedFormat.quality,
+                url: selectedFormat.url,
+                filename: `${yt2Data.title || Date.now()}.mp3`
+            };
+            console.log('✅ yt2 success (fallback MP3)');
+        }
 
         const fileName = info.filename || `${Date.now()}.mp3`;
         await saveHistory(req, url, info.title || 'YouTube Audio', 'YouTube Audio', fileName);
@@ -186,7 +262,7 @@ async function handleYouTubeAudio(req, res) {
             fileName: fileName,
             format: 'mp3',
             duration: info.duration || 0,
-            source: info.source || 'ytmp3'
+            uploader: info.uploader || null
         });
     } catch (error) {
         console.error('❌ YouTube audio download error:', error.message);
