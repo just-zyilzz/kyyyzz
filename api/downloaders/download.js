@@ -16,8 +16,6 @@
  * Usage: GET/POST /api/download?platform=youtube&url=...
  */
 
-const yt2 = require('../../lib/yt2'); // YouTube download API (SaveTube)
-const yt1 = require('../../lib/yt1'); // YouTube fallback (ytmp3.gg)
 const { tiktokDownloaderVideo } = require('../../lib/tiktok');
 const Instagram = require('../../lib/instagram');
 const { instagramDownload } = require('../../lib/scrapers');
@@ -29,6 +27,45 @@ const { getSpotifyMetadata } = require('../../lib/spotify');
 const { savePin } = require('../../lib/pinterest');
 const ytSearch = require('yt-search');
 const axios = require('axios');
+
+async function youtubeVidssaveYtdl(url) {
+    const res = await axios.post(
+        'https://api.vidssave.com/api/contentsite_api/media/parse',
+        new URLSearchParams({
+            auth: '20250901majwlqo',
+            domain: 'api-ak.vidssave.com',
+            origin: 'cache',
+            link: url
+        }).toString(),
+        {
+            headers: {
+                'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+                'content-type': 'application/x-www-form-urlencoded',
+                origin: 'https://vidssave.com',
+                referer: 'https://vidssave.com/'
+            }
+        }
+    );
+
+    const data = res.data && res.data.data;
+    if (!data || !Array.isArray(data.resources)) {
+        const msg = res.data && res.data.msg ? res.data.msg : 'Gagal mengambil data dari Vidssave';
+        throw new Error(msg);
+    }
+
+    return {
+        title: data.title,
+        thumbnail: data.thumbnail,
+        duration: data.duration,
+        formats: data.resources.map(r => ({
+            type: typeof r.type === 'string' ? r.type.toLowerCase() : r.type,
+            quality: r.quality,
+            format: typeof r.format === 'string' ? r.format.toLowerCase() : r.format,
+            size: r.size,
+            url: r.download_url
+        }))
+    };
+}
 
 async function saveHistory(req, url, title, platform, filename) {
     try {
@@ -81,84 +118,48 @@ async function handleYouTube(req, res) {
 
     try {
         const targetQuality = quality || '720';
-        let info;
+        console.log('[YouTube Video] Calling VidsSave API...');
+        const ytData = await youtubeVidssaveYtdl(url);
 
-        // --- PRIMARY: YT2 (Vidssave) ---
-        try {
-            console.log('[YouTube Video] Calling yt2.ytdl...');
-            const yt2Data = await yt2.ytdl(url);
-
-            if (yt2Data) {
-                if (!yt2Data.formats || !Array.isArray(yt2Data.formats)) {
-                    throw new Error('No formats available from yt2');
-                }
-
-                // Filter MP4 formats
-                const mp4Formats = yt2Data.formats.filter(f =>
-                    f.type === 'video' &&
-                    f.format === 'mp4' &&
-                    f.url
-                );
-
-                if (mp4Formats.length > 0) {
-                    // Sort by quality (descending)
-                    mp4Formats.sort((a, b) => {
-                        const qA = parseInt(a.quality) || 0;
-                        const qB = parseInt(b.quality) || 0;
-                        return qB - qA;
-                    });
-
-                    // Match target quality or pick best
-                    let selectedFormat = mp4Formats.find(f => f.quality === targetQuality);
-                    if (!selectedFormat) {
-                        const targetNum = parseInt(targetQuality);
-                        selectedFormat = mp4Formats.reduce((prev, curr) => {
-                            const prevDiff = Math.abs(parseInt(prev.quality) - targetNum);
-                            const currDiff = Math.abs(parseInt(curr.quality) - targetNum);
-                            return currDiff < prevDiff ? curr : prev;
-                        });
-                    }
-
-                    info = {
-                        title: yt2Data.title || 'YouTube Video',
-                        thumbnail: yt2Data.thumbnail || null,
-                        duration: yt2Data.duration || 0,
-                        quality: selectedFormat.quality,
-                        url: selectedFormat.url,
-                        filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp4`
-                    };
-                    console.log(`✅ [YouTube Video] yt2 success`);
-                }
-            }
-        } catch (yt2Error) {
-            console.error(`❌ [YouTube Video] yt2 failed:`, yt2Error.message);
+        if (!ytData.formats || !Array.isArray(ytData.formats)) {
+            throw new Error('No formats available from VidsSave');
         }
 
-        // --- FALLBACK: YT1 (ytmp3.gg) ---
-        if (!info) {
-            console.log('[YouTube Video] Falling back to yt1...');
-            try {
-                const yt1Data = await yt1.ytdl(url, 'mp4', targetQuality);
-                if (yt1Data && yt1Data.url) {
-                    console.log(`✅ [YouTube Video] yt1 Success`);
-                    info = {
-                        title: yt1Data.title,
-                        thumbnail: yt1Data.thumbnail,
-                        duration: yt1Data.duration,
-                        quality: yt1Data.quality,
-                        url: yt1Data.url,
-                        filename: yt1Data.filename
-                    };
-                }
-            } catch (yt1Error) {
-                console.error(`❌ [YouTube Video] yt1 failed:`, yt1Error.message);
-            }
+        const mp4Formats = ytData.formats.filter(f =>
+            f.type === 'video' &&
+            f.format === 'mp4' &&
+            f.url
+        );
+
+        if (mp4Formats.length === 0) {
+            throw new Error('MP4 format tidak tersedia');
         }
 
-        // --- FINAL CHECK ---
-        if (!info) {
-            throw new Error('Gagal download dari semua server available.');
+        mp4Formats.sort((a, b) => {
+            const qA = parseInt(a.quality) || 0;
+            const qB = parseInt(b.quality) || 0;
+            return qB - qA;
+        });
+
+        let selectedFormat = mp4Formats.find(f => f.quality === targetQuality);
+        if (!selectedFormat) {
+            const targetNum = parseInt(targetQuality);
+            selectedFormat = mp4Formats.reduce((prev, curr) => {
+                const prevDiff = Math.abs(parseInt(prev.quality) - targetNum);
+                const currDiff = Math.abs(parseInt(curr.quality) - targetNum);
+                return currDiff < prevDiff ? curr : prev;
+            });
         }
+
+        const info = {
+            title: ytData.title || 'YouTube Video',
+            thumbnail: ytData.thumbnail || null,
+            duration: ytData.duration || 0,
+            quality: selectedFormat.quality,
+            url: selectedFormat.url,
+            filename: `${(ytData.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp4`
+        };
+        console.log('✅ [YouTube Video] VidsSave success');
 
         await saveHistory(req, url, info.title, 'YouTube', info.filename);
 
@@ -203,71 +204,34 @@ async function handleYouTubeAudio(req, res) {
     }
 
     try {
-        let info;
+        console.log('[YouTube Audio] Calling VidsSave API...');
+        const ytData = await youtubeVidssaveYtdl(url);
 
-        // --- PRIMARY: YT2 (Vidssave) ---
-        try {
-            console.log('[YouTube Audio] Calling yt2.ytdl...');
-            const yt2Data = await yt2.ytdl(url);
-
-            if (yt2Data) {
-                if (!yt2Data.formats || !Array.isArray(yt2Data.formats)) {
-                    throw new Error('No formats available from yt2');
-                }
-
-                // Filter audio formats
-                const audioFormats = yt2Data.formats.filter(f =>
-                    (f.type === 'audio' || f.format === 'mp3' || f.format === 'm4a') &&
-                    f.url
-                );
-
-                if (audioFormats.length > 0) {
-                    // Pick best audio
-                    audioFormats.sort((a, b) => (b.size || 0) - (a.size || 0));
-                    const selectedFormat = audioFormats[0];
-
-                    info = {
-                        title: yt2Data.title || 'YouTube Audio',
-                        thumbnail: yt2Data.thumbnail || null,
-                        duration: yt2Data.duration || 0,
-                        quality: '128kbps',
-                        url: selectedFormat.url,
-                        filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp3`
-                    };
-                    console.log(`✅ [YouTube Audio] yt2 Success`);
-                }
-            }
-        } catch (yt2Error) {
-            console.error(`❌ [YouTube Audio] yt2 failed:`, yt2Error.message);
+        if (!ytData.formats || !Array.isArray(ytData.formats)) {
+            throw new Error('No formats available from VidsSave');
         }
 
-        // --- FALLBACK: YT1 (ytmp3.gg) ---
-        if (!info) {
-            console.log('[YouTube Audio] Falling back to yt1...');
-            try {
-                // FALLBACK TO YT1
-                const yt1Data = await yt1.ytdl(url, 'mp3', '128');
+        const audioFormats = ytData.formats.filter(f =>
+            (f.type === 'audio' || f.format === 'mp3' || f.format === 'm4a') &&
+            f.url
+        );
 
-                if (yt1Data && yt1Data.url) {
-                    console.log(`✅ [YouTube Audio] yt1 Success`);
-                    info = {
-                        title: yt1Data.title,
-                        thumbnail: yt1Data.thumbnail,
-                        duration: yt1Data.duration,
-                        quality: yt1Data.quality,
-                        url: yt1Data.url,
-                        filename: yt1Data.filename
-                    };
-                }
-            } catch (yt1Error) {
-                console.error(`❌ [YouTube Audio] yt1 failed:`, yt1Error.message);
-            }
+        if (audioFormats.length === 0) {
+            throw new Error('Format audio tidak tersedia');
         }
 
-        // --- FINAL CHECK ---
-        if (!info) {
-            throw new Error('Gagal download audio dari semua server.');
-        }
+        audioFormats.sort((a, b) => (b.size || 0) - (a.size || 0));
+        const selectedFormat = audioFormats[0];
+
+        const info = {
+            title: ytData.title || 'YouTube Audio',
+            thumbnail: ytData.thumbnail || null,
+            duration: ytData.duration || 0,
+            quality: '128kbps',
+            url: selectedFormat.url,
+            filename: `${(ytData.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp3`
+        };
+        console.log('✅ [YouTube Audio] VidsSave success');
 
         await saveHistory(req, url, info.title, 'YouTube Audio', info.filename);
 
