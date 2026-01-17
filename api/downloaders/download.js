@@ -16,7 +16,7 @@
  * Usage: GET/POST /api/download?platform=youtube&url=...
  */
 
-const { ytdl } = require('../../lib/savefrom');
+const { ytdl } = require('../../lib/ytdl');
 const { tiktokDownloaderVideo } = require('../../lib/tiktok');
 const Instagram = require('../../lib/instagram');
 const { instagramDownload } = require('../../lib/scrapers');
@@ -52,7 +52,7 @@ function sanitizeUrl(url) {
 async function handleYouTube(req, res) {
     let url = req.method === 'POST' ? req.body.url : req.query.url;
     url = sanitizeUrl(url);
-    let quality = req.method === 'POST' ? (req.body.quality || '1080') : (req.query.quality || '1080');
+    let quality = req.method === 'POST' ? (req.body.quality || '720') : (req.query.quality || '720'); // Changed default to 720 to match frontend
     const isServerless = process.env.VERCEL || process.env.NOW_REGION;
 
     // Sanitasi input quality (hapus 'p' jika ada)
@@ -71,7 +71,7 @@ async function handleYouTube(req, res) {
         console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}, env: ${isServerless ? 'serverless' : 'node-server'}`);
 
         const targetQuality = quality || '720';
-        
+
         // Use increased timeout for serverless environments
         const info = await Promise.race([
             ytdl(url, 'mp4', targetQuality),
@@ -98,15 +98,30 @@ async function handleYouTube(req, res) {
         });
     } catch (error) {
         console.error('❌ YouTube download error:', error.message);
+
+        // Return helpful error message
+        let errorMsg = error.message || 'Download gagal';
+
+        // Check for specific errors and provide helpful tips
+        if (errorMsg.includes('Sign in') || errorMsg.includes('bot')) {
+            errorMsg = 'YouTube memblokir akses. Coba lagi nanti atau gunakan VPN.';
+        } else if (errorMsg.includes('timeout') || errorMsg.includes('Timeout')) {
+            errorMsg = 'Timeout saat download. Coba kualitas lebih rendah.';
+        } else if (errorMsg.includes('Invalid') || errorMsg.includes('Not found')) {
+            errorMsg = 'Video tidak ditemukan atau URL tidak valid.';
+        } else if (errorMsg.includes('All') && errorMsg.includes('failed')) {
+            errorMsg = 'Semua server YouTube downloader sedang bermasalah. Coba lagi nanti.';
+        }
+
         return res.json({
             success: false,
-            error: 'Download gagal.',
+            error: errorMsg,
             debug: {
                 platform: 'YouTube',
                 url,
                 quality,
                 env: isServerless ? 'serverless' : 'node-server',
-                message: error.message
+                originalError: error.message
             }
         });
     }
