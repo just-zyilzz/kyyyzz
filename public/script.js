@@ -424,10 +424,9 @@ async function handleUrlDownload(url) {
   // Get metadata based on platform
   if (platform === 'YouTube') {
     try {
-      const res = await fetchWithRetry('/api/utils/utility', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'thumbnail', url })
+      // Use GET for metadata
+      const res = await fetchWithRetry(`/api/utils/utility?action=thumbnail&url=${encodeURIComponent(url)}`, {
+        method: 'GET'
       }, 1, 10000); // Increased timeout to 10s
       metadata = await res.json();
     } catch (error) {
@@ -447,17 +446,15 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'Instagram') {
     try {
-      // Increased timeout to 15 seconds for better reliability
-      const res = await fetchWithRetry('/api/downloaders/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: 'instagram', url, metadata: true })
+      // Use GET for metadata
+      const res = await fetchWithRetry(`/api/downloaders/download?platform=instagram&url=${encodeURIComponent(url)}&metadata=true`, {
+        method: 'GET'
       }, 2, 15000); // 15 second timeout
       metadata = await res.json();
 
       // Fetch full data if carousel detected in metadata
       if (metadata.success && !metadata.isCarousel) {
-        // Try to get full carousel data
+        // Try to get full carousel data using POST
         try {
           const fullRes = await fetchWithRetry('/api/downloaders/download', {
             method: 'POST',
@@ -478,11 +475,9 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'Douyin') {
     try {
-      // Increased timeout to 25 seconds for Douyin API
-      const res = await fetchWithRetry('/api/downloaders/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: 'douyin', url, metadata: true })
+      // Use GET for metadata
+      const res = await fetchWithRetry(`/api/downloaders/download?platform=douyin&url=${encodeURIComponent(url)}&metadata=true`, {
+        method: 'GET'
       }, 3, 25000); // 3 retries, 25 second timeout
       metadata = await res.json();
     } catch (error) {

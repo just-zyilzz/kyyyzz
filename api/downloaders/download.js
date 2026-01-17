@@ -50,9 +50,19 @@ function sanitizeUrl(url) {
 
 // ======================== YOUTUBE VIDEO ========================
 async function handleYouTube(req, res) {
+    // Enforce: GET for metadata, POST for download
+    const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
+
+    if (metadataOnly && req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
+    }
+    if (!metadataOnly && req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
+    }
+
     let url = req.method === 'POST' ? req.body.url : req.query.url;
     url = sanitizeUrl(url);
-    let quality = req.method === 'POST' ? (req.body.quality || '720') : (req.query.quality || '720'); // Changed default to 720 to match frontend
+    let quality = req.method === 'POST' ? (req.body.quality || '720') : (req.query.quality || '720');
     const isServerless = process.env.VERCEL || process.env.NOW_REGION;
 
     // Sanitasi input quality (hapus 'p' jika ada)
@@ -129,6 +139,16 @@ async function handleYouTube(req, res) {
 
 // ======================== YOUTUBE AUDIO ========================
 async function handleYouTubeAudio(req, res) {
+    // Enforce: GET for metadata, POST for download
+    const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
+
+    if (metadataOnly && req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
+    }
+    if (!metadataOnly && req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
+    }
+
     let url = req.method === 'POST' ? req.body.url : req.query.url;
     url = sanitizeUrl(url);
 
@@ -184,6 +204,16 @@ async function handleYouTubeAudio(req, res) {
 
 // ======================== TIKTOK ========================
 async function handleTikTok(req, res) {
+    // Enforce: GET for metadata, POST for download
+    const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
+
+    if (metadataOnly && req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
+    }
+    if (!metadataOnly && req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
+    }
+
     const url = req.method === 'POST' ? req.body.url : req.query.url;
     const format = req.method === 'POST' ? (req.body.format || 'video') : (req.query.format || 'video');
 
@@ -195,8 +225,6 @@ async function handleTikTok(req, res) {
     if (!lowerUrl.includes('tiktok.com') && !lowerUrl.includes('vt.tiktok.com') && !lowerUrl.includes('vm.tiktok.com')) {
         return res.status(400).json({ success: false, error: 'URL bukan TikTok' });
     }
-
-    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
 
     if (metadataOnly) {
         try {
@@ -328,6 +356,16 @@ async function getInstagramMetadata(url) {
 }
 
 async function handleInstagram(req, res) {
+    // Enforce: GET for metadata, POST for download
+    const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
+
+    if (metadataOnly && req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
+    }
+    if (!metadataOnly && req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
+    }
+
     const url = req.method === 'POST' ? req.body.url : req.query.url;
     const title = req.method === 'POST' ? req.body.title : req.query.title;
 
@@ -340,7 +378,6 @@ async function handleInstagram(req, res) {
         return res.status(400).json({ success: false, error: 'URL bukan Instagram' });
     }
 
-    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
     if (metadataOnly) {
         const metadata = await getInstagramMetadata(url);
         return res.json(metadata);
@@ -394,6 +431,16 @@ async function handleInstagram(req, res) {
 
 // ======================== DOUYIN ========================
 async function handleDouyin(req, res) {
+    // Enforce: GET for metadata, POST for download
+    const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
+
+    if (metadataOnly && req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
+    }
+    if (!metadataOnly && req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
+    }
+
     const url = req.method === 'POST' ? req.body.url : req.query.url;
 
     if (!url) {
@@ -404,8 +451,6 @@ async function handleDouyin(req, res) {
     if (!lowerUrl.includes('douyin.com') && !lowerUrl.includes('v.douyin.com')) {
         return res.status(400).json({ success: false, error: 'URL bukan Douyin' });
     }
-
-    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
 
     if (metadataOnly) {
         try {
@@ -456,6 +501,16 @@ async function handleDouyin(req, res) {
 
 // ======================== TWITTER ========================
 async function handleTwitter(req, res) {
+    // Enforce: GET for metadata, POST for download
+    const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
+
+    if (metadataOnly && req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
+    }
+    if (!metadataOnly && req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
+    }
+
     const url = req.method === 'POST' ? req.body.url : req.query.url;
     const quality = req.method === 'POST' ? (req.body.quality || 'best') : (req.query.quality || 'best');
 
@@ -467,8 +522,6 @@ async function handleTwitter(req, res) {
     if (!lowerUrl.includes('twitter.com') && !lowerUrl.includes('x.com')) {
         return res.status(400).json({ success: false, error: 'URL bukan Twitter/X' });
     }
-
-    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
 
     if (metadataOnly) {
         try {
@@ -535,6 +588,11 @@ async function handleTwitter(req, res) {
 
 // ======================== SPOTIFY ========================
 async function handleSpotify(req, res) {
+    // Spotify only supports POST (no separate metadata endpoint)
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Spotify requests must use POST method' });
+    }
+
     const url = req.method === 'POST' ? req.body.url : req.query.url;
 
     if (!url) {
@@ -570,6 +628,16 @@ async function handleSpotify(req, res) {
 
 // ======================== PINTEREST ========================
 async function handlePinterest(req, res) {
+    // Enforce: GET for metadata, POST for download
+    const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
+
+    if (metadataOnly && req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
+    }
+    if (!metadataOnly && req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
+    }
+
     const url = req.method === 'POST' ? req.body.url : req.query.url;
 
     if (!url) {
@@ -580,8 +648,6 @@ async function handlePinterest(req, res) {
     if (!lowerUrl.includes('pinterest.com') && !lowerUrl.includes('pin.it')) {
         return res.status(400).json({ success: false, error: 'URL bukan Pinterest' });
     }
-
-    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
 
     if (metadataOnly) {
         try {
