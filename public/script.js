@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => { initTheme(); });
 
+// Global variable to store selected quality
+let selectedQuality = '720'; // Default quality
+
 // Theme handling
 function initTheme() {
   const btn = document.getElementById('theme-toggle');
@@ -375,18 +378,23 @@ async function fetchWithTimeout(url, options = {}, timeout = 6000) {
 }
 
 // Fetch with automatic retry and exponential backoff
-async function fetchWithRetry(url, options = {}, retries = 1, timeout = 6000) {
+async function fetchWithRetry(url, options = {}, retries = 2, timeout = 30000) {
   for (let i = 0; i <= retries; i++) {
     try {
       const response = await fetchWithTimeout(url, options, timeout);
       return response;
     } catch (error) {
-      // If last retry, throw error
-      if (i === retries) throw error;
+      console.warn(`⚠️ Retry ${i + 1}/${retries} failed:`, error.message);
 
-      // Fast retry: 300ms, max 1s
-      const delay = Math.min(300 * Math.pow(2, i), 1000);
-      console.log(`Retry ${i + 1}/${retries} after ${delay}ms...`);
+      // If last retry, throw error
+      if (i === retries) {
+        console.error('❌ All retries exhausted');
+        throw error;
+      }
+
+      // Exponential backoff: 500ms, 1s, 2s
+      const delay = Math.min(500 * Math.pow(2, i), 2000);
+      console.log(`⏳ Retrying after ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -422,15 +430,15 @@ async function handleUrlDownload(url) {
   let metadata;
 
   // Get metadata based on platform
-    if (platform === 'YouTube') {
-      try {
-        const res = await fetchWithRetry('/api/utils/utility', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'thumbnail', url })
-        }, 1, 10000); // Increased timeout to 10s
-        metadata = await res.json();
-      } catch (error) {
+  if (platform === 'YouTube') {
+    try {
+      const res = await fetchWithRetry('/api/utils/utility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'thumbnail', url })
+      }, 1, 10000); // Increased timeout to 10s
+      metadata = await res.json();
+    } catch (error) {
       console.error('YouTube metadata error:', error.message);
       metadata = { success: true, title: 'YouTube Video', platform: 'YouTube', thumbnail: null };
     }
@@ -663,7 +671,52 @@ async function handleUrlDownload(url) {
         }
         return raw;
       })();
-      resultDiv.innerHTML = `
+
+      // ===== IMPROVED YOUTUBE DISPLAY WITH QUALITY SELECTOR =====
+      if (platform === 'YouTube') {
+        resultDiv.innerHTML = `
+          ${thumbSrc ? `<img src="${thumbSrc}" alt="Thumbnail" loading="lazy" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
+          <div class="meta">
+            <p><strong>Platform:</strong> YouTube</p>
+            ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+            ${metadata.author ? `<p><strong>Channel:</strong> ${metadata.author}</p>` : ''}
+          </div>
+          
+          <!-- QUALITY SELECTOR -->
+          <div style="margin: 16px 0; padding: 12px; background: var(--input-bg); border-radius: 8px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">
+              🎬 Pilih Kualitas Video:
+            </label>
+            <select id="qualitySelector" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--input-border); background: var(--bg-primary); color: var(--text-primary); font-size: 14px; cursor: pointer;">
+              <option value="360">360p (Low - Hemat Kuota)</option>
+              <option value="480">480p (SD)</option>
+              <option value="720" selected>720p (HD - Recommended)</option>
+              <option value="1080">1080p (Full HD)</option>
+              <option value="1440">1440p (2K)</option>
+              <option value="2160">2160p (4K)</option>
+            </select>
+            <p style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+              💡 Tip: Pilih kualitas lebih rendah jika video gagal didownload
+            </p>
+          </div>
+
+          <div class="download-btns">
+            <button class="dl-video" data-url="${url}" data-platform="YouTube">📥 Download Video</button>
+            <button class="dl-audio" data-url="${url}" data-platform="YouTube">🎵 Download Audio</button>
+          </div>
+        `;
+
+        // Add event listener for quality selector
+        const qualitySelector = document.getElementById('qualitySelector');
+        if (qualitySelector) {
+          qualitySelector.addEventListener('change', (e) => {
+            selectedQuality = e.target.value;
+            console.log('✅ Quality selected:', selectedQuality);
+          });
+        }
+      } else {
+        // Other platforms (non-YouTube)
+        resultDiv.innerHTML = `
           ${thumbSrc ? `<img src="${thumbSrc}" alt="Thumbnail" loading="lazy" style="max-height:500px; width:100%; border-radius:12px; margin-bottom:15px;">` : ''}
           <div class="meta">
             <p><strong>Platform:</strong> ${platform}</p>
@@ -675,10 +728,11 @@ async function handleUrlDownload(url) {
           </div>
           <div class="download-btns">
             ${platform === 'Pinterest' ? `<button class="dl-image" data-url="${url}" data-platform="${platform}">📥 Download ${metadata.mediaType || 'Media'}</button>` : `<button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>`}
-            ${platform === 'YouTube' || platform === 'TikTok' || platform === 'Douyin' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
+            ${platform === 'TikTok' || platform === 'Douyin' ? `<button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>` : ''}
             ${platform === 'Twitter' && metadata.qualities && metadata.qualities.length > 1 ? `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">📊 ${metadata.qualities.length} qualities available</p>` : ''}
           </div>
         `;
+      }
     }
 
     resultDiv.style.display = 'block';
@@ -804,7 +858,6 @@ function showPopup(message, state = 'loading', duration = 3000) {
   const popup = document.getElementById('popup');
   popup.textContent = message;
 
-  // Use CSS classes based on state
   let stateClass = '';
   if (state === 'loading') {
     stateClass = 'popup-loading';
@@ -813,7 +866,7 @@ function showPopup(message, state = 'loading', duration = 3000) {
   } else if (state === 'error') {
     stateClass = 'popup-error';
     // Show error longer so user can read it
-    if (duration === 3000) duration = 5000;
+    if (duration === 3000) duration = 6000;
   }
 
   popup.className = `popup show ${stateClass}`;
@@ -823,12 +876,12 @@ function showPopup(message, state = 'loading', duration = 3000) {
   }, duration);
 }
 
+// ===== IMPROVED DOWNLOAD FUNCTION =====
 async function download(url, format, platform) {
   const popup = document.getElementById('popup');
 
-  // Show loading
-  popup.textContent = '⏳ Downloading...';
-  popup.className = 'popup show popup-loading';
+  // Show loading with better message
+  showPopup('⏳ Memproses download...', 'loading');
 
   try {
     let endpoint;
@@ -838,9 +891,11 @@ async function download(url, format, platform) {
     if (platform === 'YouTube') {
       endpoint = '/api/downloaders/download';
       body.platform = format === 'audio' ? 'youtube-audio' : 'youtube';
-      // Add default quality to prevent server errors with high resolutions
+
+      // ✅ FIX: Use selected quality from dropdown (not hardcoded 720!)
       if (format !== 'audio') {
-        body.quality = '720';
+        body.quality = selectedQuality || '720'; // Use global variable
+        console.log(`📊 Downloading with quality: ${body.quality}p`);
       }
     } else if (platform === 'TikTok') {
       endpoint = '/api/downloaders/download';
@@ -863,31 +918,48 @@ async function download(url, format, platform) {
       throw new Error('Platform tidak didukung');
     }
 
-    // Increased timeout for YouTube as it can be slow
-    const timeout = platform === 'YouTube' ? 60000 : 15000;
+    // ✅ FIX: Increased timeout for large videos (especially 4K)
+    const timeout = platform === 'YouTube' ? 120000 : 30000; // 2 minutes for YouTube!
+
+    console.log('📤 Sending request:', body);
 
     const res = await fetchWithRetry(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    }, 1, timeout);
+    }, 2, timeout); // 2 retries
 
     let data;
     try {
       data = await res.json();
     } catch (parseErr) {
       const text = await res.text().catch(() => '');
+      console.error('❌ JSON parse error:', parseErr);
+      console.error('📄 Response text:', text);
       throw new Error(text || ('Network error ' + res.status + ' ' + res.statusText));
     }
 
     if (!res.ok) {
-      throw new Error(data.error || 'Gagal download');
+      // ✅ FIX: Better error messages
+      let errorMsg = data.error || 'Gagal download';
+
+      // Provide helpful hints based on error
+      if (errorMsg.includes('timeout') || errorMsg.includes('Timeout')) {
+        errorMsg = '⏱️ Timeout! Coba kualitas lebih rendah (360p/480p)';
+      } else if (errorMsg.includes('format') || errorMsg.includes('quality')) {
+        errorMsg = '🎬 Kualitas tidak tersedia. Coba kualitas lain';
+      } else if (errorMsg.includes('Sign in') || errorMsg.includes('bot')) {
+        errorMsg = '🤖 YouTube memblokir. Coba lagi atau gunakan VPN';
+      }
+
+      throw new Error(errorMsg);
     }
 
     if (data.success) {
       const downloadUrl = data.downloadUrl;
       let fileName = data.fileName;
 
+      // ✅ FIX: Better filename handling
       if (fileName && fileName.includes('.')) {
         fileName = fileName;
       } else {
@@ -902,30 +974,40 @@ async function download(url, format, platform) {
           }
         }
         if (!fileName) {
-          fileName = `download_${Date.now()}${ext}`;
+          // Include quality in filename for videos
+          const qualityTag = format === 'video' && selectedQuality ? `_${selectedQuality}p` : '';
+          fileName = `download${qualityTag}_${Date.now()}${ext}`;
         } else if (!fileName.toLowerCase().endsWith(ext)) {
           fileName += ext;
         }
       }
 
       if (downloadUrl) {
-        popup.textContent = '⏳ Starting...';
+        showPopup('⏳ Memulai download...', 'loading');
 
         if (platform === 'YouTube') {
           // Use proxy for YouTube to avoid CORS and ensure download
-          const proxyUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&download=true&filename=${encodeURIComponent(fileName)}`;
-          
+          const proxyUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&download=true&filename=${encodeURIComponent(fileName)}&type=${format}`;
+
           try {
+            console.log('📥 Downloading via proxy:', fileName);
+
             // Trigger download via proxy
             window.location.href = proxyUrl;
-            popup.textContent = '✅ Download started!';
+
+            // Show success message with quality info
+            const qualityInfo = format === 'video' ? ` (${selectedQuality}p)` : '';
+            showPopup(`✅ Download started${qualityInfo}!`, 'success');
+
+            console.log(`✅ Download triggered: ${fileName}`);
           } catch (e) {
             console.error('Download trigger error:', e);
             // Fallback
             window.open(proxyUrl, '_blank');
-            popup.textContent = '✅ Opened in new tab!';
+            showPopup('✅ Opened in new tab!', 'success');
           }
         } else {
+          // Other platforms (keep existing logic)
           let primaryUrl = downloadUrl;
           let proxyUrl = null;
 
@@ -940,27 +1022,31 @@ async function download(url, format, platform) {
           const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
 
           if (downloaded) {
-            popup.textContent = '✅ Done!';
+            showPopup('✅ Download selesai!', 'success');
           } else {
-            popup.textContent = '✅ Opened!';
+            showPopup('✅ Opened in new tab!', 'success');
           }
         }
-
-        popup.className = 'popup show popup-success';
-        setTimeout(() => popup.classList.remove('show'), 3000);
       } else {
         throw new Error('Download URL tidak ditemukan');
       }
     } else {
+      // ✅ FIX: Show debug info in console for troubleshooting
+      console.error('❌ API returned success: false', data);
       throw new Error(data.error || 'Gagal download');
     }
   } catch (e) {
-    console.error('Download error:', e);
-    popup.textContent = '❌ ' + (e.message || 'Failed!');
-    popup.className = 'popup show popup-error';
-    setTimeout(() => {
-      popup.classList.remove('show');
-    }, 5000);
+    console.error('❌ Download error:', e);
+
+    // ✅ FIX: Better error display with retry hint
+    let errorMsg = e.message || 'Failed!';
+
+    // Add retry hint for network errors
+    if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError')) {
+      errorMsg = '🌐 Koneksi error! Cek internet Anda';
+    }
+
+    showPopup('❌ ' + errorMsg, 'error', 6000); // Show longer (6 seconds)
   }
 }
 

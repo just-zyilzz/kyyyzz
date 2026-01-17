@@ -71,7 +71,12 @@ async function handleYouTube(req, res) {
         console.log(`[YouTube Video] Requesting download for: ${url}, quality: ${quality}, env: ${isServerless ? 'serverless' : 'node-server'}`);
 
         const targetQuality = quality || '720';
-        const info = await ytdl(url, 'mp4', targetQuality);
+        
+        // Use increased timeout for serverless environments
+        const info = await Promise.race([
+            ytdl(url, 'mp4', targetQuality),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Processing timeout')), 55000))
+        ]);
 
         const fileName = info.filename || `${Date.now()}.mp4`;
         await saveHistory(req, url, info.title || 'YouTube Video', 'YouTube', fileName);
@@ -124,8 +129,11 @@ async function handleYouTubeAudio(req, res) {
     try {
         console.log(`[YouTube Audio] Requesting download for: ${url}`);
 
-        const bitrate = '320';
-        const info = await ytdl(url, 'mp3', bitrate);
+        // Use increased timeout for serverless environments
+        const info = await Promise.race([
+            ytdl(url, 'mp3', '320'),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Processing timeout')), 55000))
+        ]);
 
         const fileName = info.filename || `${Date.now()}.mp3`;
         await saveHistory(req, url, info.title || 'YouTube Audio', 'YouTube Audio', fileName);
