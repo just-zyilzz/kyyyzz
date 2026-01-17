@@ -440,16 +440,14 @@ async function handleUrlDownload(url) {
   // Get metadata based on platform
     if (platform === 'YouTube') {
       try {
-        const res = await fetchWithRetry('/api/utils/utility', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'thumbnail', url })
-        }, 1, 10000); // Increased timeout to 10s
+        const res = await fetchWithRetry(`/api/downloaders/download?platform=youtube&url=${encodeURIComponent(url)}&metadata=true`, {
+          method: 'GET'
+        }, 2, 15000);
         metadata = await res.json();
       } catch (error) {
-      console.error('YouTube metadata error:', error.message);
-      metadata = { success: true, title: 'YouTube Video', platform: 'YouTube', thumbnail: null };
-    }
+        console.error('YouTube metadata error:', error.message);
+        metadata = { success: true, title: 'YouTube Video', platform: 'YouTube', thumbnail: null };
+      }
   } else if (platform === 'TikTok') {
     try {
       // Use GET method with metadata=true for faster preview
@@ -686,6 +684,7 @@ async function handleUrlDownload(url) {
             ${metadata.title ? `<p><strong>Judul:</strong> ${metadata.title}</p>` : ''}
             ${metadata.author ? `<p><strong>Author:</strong> ${metadata.author}</p>` : ''}
             ${metadata.duration ? `<p><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
+            ${metadata.quality ? `<p><strong>Kualitas:</strong> ${metadata.quality}</p>` : ''}
             ${metadata.stats ? `<p><strong>Views:</strong> ${metadata.stats.views} | <strong>Likes:</strong> ${metadata.stats.likes}</p>` : ''}
             ${metadata.mediaType ? `<p><strong>Type:</strong> ${metadata.mediaType}</p>` : ''}
           </div>
