@@ -353,8 +353,9 @@ async function selectPinterestPin(url, title) {
   }
 }
 
-// Fetch with timeout to prevent hanging
-async function fetchWithTimeout(url, options = {}, timeout = 15000) {
+// Fetch without automatic retry for faster feedback
+async function fetchWithRetry(url, options = {}, retries = 0, timeout = 25000) {
+  // Simple fetch wrapper with timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -367,45 +368,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 15000) {
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error(`Request timeout (${timeout}ms) - Server terlalu lambat`);
-    }
     throw error;
-  }
-}
-// Fetch with automatic retry and exponential backoff
-async function fetchWithRetry(url, options = {}, retries = 2, timeout = 15000) {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const response = await fetchWithTimeout(url, options, timeout);
-      
-      // If server error (5xx), retry
-      if (response.status >= 500 && response.status < 600 && i < retries) {
-        console.log(`Server error ${response.status}, retrying... (${i + 1}/${retries})`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-        continue;
-      }
-      
-      return response;
-    } catch (error) {
-      // If last retry, throw error
-      if (i === retries) throw error;
-
-      // Check if it's a network error worth retrying
-      const isRetryable = (
-        error.name === 'AbortError' ||
-        error.message.includes('timeout') ||
-        error.message.includes('network') ||
-        error.message.includes('fetch')
-      );
-
-      if (!isRetryable) throw error;
-
-      // Progressive delay: 1s, 2s, 3s
-      const delay = 1000 * (i + 1);
-      console.log(`Retry ${i + 1}/${retries} after ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
   }
 }
 // Select video from search results

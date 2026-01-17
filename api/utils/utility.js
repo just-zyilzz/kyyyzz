@@ -290,37 +290,18 @@ async function handleYouTubeProxy(req, res) {
         };
 
         const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-        const isRetryableNetworkError = (err) => {
-            const code = err && err.code;
-            return (
-                code === 'ECONNRESET' ||
-                code === 'ETIMEDOUT' ||
-                code === 'EAI_AGAIN' ||
-                code === 'ENOTFOUND' ||
-                code === 'ECONNREFUSED' ||
-                code === 'EPIPE'
-            );
-        };
-
-        let upstreamResponse;
-        let lastError;
-
-        for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-                upstreamResponse = await axios(requestConfig);
-                const status = upstreamResponse.status;
-                if ((status === 429 || (status >= 500 && status <= 599)) && attempt < 2) {
-                    if (upstreamResponse.data?.destroy) upstreamResponse.data.destroy();
-                    await wait(250 * (attempt + 1));
-                    continue;
-                }
-                break;
-            } catch (err) {
-                lastError = err;
-                if (attempt < 2 && isRetryableNetworkError(err)) {
-                    await wait(250 * (attempt + 1));
-                    continue;
-                }
+        
+        // Single attempt, no complex retry logic
+        try {
+            upstreamResponse = await axios(requestConfig);
+        } catch (err) {
+            console.error('[Proxy] Upstream error:', err.message);
+            
+            // If it's a 4xx/5xx response from upstream, we can still forward it (optional)
+            // or just throw to let the catch block handle it
+            if (err.response) {
+                upstreamResponse = err.response;
+            } else {
                 throw err;
             }
         }
