@@ -74,18 +74,30 @@ async function handleYouTube(req, res) {
         return res.status(400).json({ success: false, error: 'URL bukan YouTube' });
     }
 
-    try {
-        console.log(`[YouTube Video] URL: ${url}, Quality: ${quality}`);
+    // Add request timestamp for debugging
+    const startTime = Date.now();
+    console.log(`[YouTube Video] Request started at ${new Date().toISOString()}`);
+    console.log(`[YouTube Video] URL: ${url}, Quality: ${quality}`);
 
+    try {
         const targetQuality = quality || '720';
         let info;
 
         try {
+            console.log('[YouTube Video] Calling yt2.ytdl...');
             const yt2Data = await yt2.ytdl(url);
+            console.log(`[YouTube Video] yt2.ytdl completed in ${Date.now() - startTime}ms`);
 
-            if (!yt2Data || !yt2Data.formats || yt2Data.formats.length === 0) {
+            if (!yt2Data) {
+                throw new Error('yt2.ytdl returned null/undefined');
+            }
+
+            if (!yt2Data.formats || !Array.isArray(yt2Data.formats) || yt2Data.formats.length === 0) {
+                console.error('[YouTube Video] No formats in response:', JSON.stringify(yt2Data));
                 throw new Error('No formats available from API');
             }
+
+            console.log(`[YouTube Video] Found ${yt2Data.formats.length} formats`);
 
             // Filter MP4 video formats
             const mp4Formats = yt2Data.formats.filter(f => 
@@ -94,7 +106,15 @@ async function handleYouTube(req, res) {
                 f.url
             );
 
+            console.log(`[YouTube Video] Found ${mp4Formats.length} MP4 formats`);
+
             if (mp4Formats.length === 0) {
+                console.error('[YouTube Video] Available formats:', JSON.stringify(yt2Data.formats.map(f => ({
+                    type: f.type,
+                    format: f.format,
+                    quality: f.quality,
+                    hasUrl: !!f.url
+                }))));
                 throw new Error('No MP4 format available');
             }
 
@@ -108,7 +128,6 @@ async function handleYouTube(req, res) {
             // Match target quality or pick best
             let selectedFormat = mp4Formats.find(f => f.quality === targetQuality);
             if (!selectedFormat) {
-                // Find closest quality
                 const targetNum = parseInt(targetQuality);
                 selectedFormat = mp4Formats.reduce((prev, curr) => {
                     const prevDiff = Math.abs(parseInt(prev.quality) - targetNum);
@@ -116,6 +135,8 @@ async function handleYouTube(req, res) {
                     return currDiff < prevDiff ? curr : prev;
                 });
             }
+
+            console.log(`[YouTube Video] Selected format: ${selectedFormat.quality}p`);
 
             info = {
                 title: yt2Data.title || 'YouTube Video',
@@ -126,14 +147,32 @@ async function handleYouTube(req, res) {
                 filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp4`
             };
             
-            console.log(`✅ yt2 success - Quality: ${info.quality}`);
+            console.log(`✅ [YouTube Video] Success in ${Date.now() - startTime}ms`);
         } catch (yt2Error) {
-            console.error('❌ yt2 failed:', yt2Error.message);
-            throw new Error(`Download API gagal: ${yt2Error.message}`);
+            console.error(`❌ [YouTube Video] yt2 failed in ${Date.now() - startTime}ms:`, yt2Error.message);
+            console.error('[YouTube Video] Full error:', yt2Error);
+            
+            // Return detailed error for debugging
+            return res.status(500).json({
+                success: false,
+                error: `Download API gagal: ${yt2Error.message}`,
+                debug: {
+                    platform: 'YouTube',
+                    url,
+                    quality,
+                    timestamp: new Date().toISOString(),
+                    executionTime: `${Date.now() - startTime}ms`,
+                    errorType: yt2Error.name,
+                    errorMessage: yt2Error.message,
+                    errorStack: yt2Error.stack?.split('\n').slice(0, 3).join('\n')
+                }
+            });
         }
 
         const fileName = info.filename || `youtube_${Date.now()}.mp4`;
         await saveHistory(req, url, info.title || 'YouTube Video', 'YouTube', fileName);
+
+        console.log(`[YouTube Video] Returning success response`);
 
         return res.json({
             success: true,
@@ -145,14 +184,14 @@ async function handleYouTube(req, res) {
             fileName: fileName,
             quality: info.quality || targetQuality,
             duration: info.duration || 0,
-            uploader: info.uploader || null
+            uploader: info.uploader || null,
+            executionTime: `${Date.now() - startTime}ms`
         });
     } catch (error) {
-        console.error('❌ YouTube download error:', error.message);
+        console.error(`❌ [YouTube Video] Unexpected error in ${Date.now() - startTime}ms:`, error);
 
         let errorMsg = error.message || 'Download gagal';
 
-        // User-friendly error messages
         if (errorMsg.includes('Empty response') || errorMsg.includes('Invalid API')) {
             errorMsg = 'Server download sedang sibuk. Coba lagi dalam beberapa saat.';
         } else if (errorMsg.includes('No formats') || errorMsg.includes('No MP4')) {
@@ -163,19 +202,20 @@ async function handleYouTube(req, res) {
             errorMsg = 'Koneksi ke server gagal. Periksa internet Anda.';
         }
 
-        return res.status(503).json({
+        return res.status(500).json({
             success: false,
             error: errorMsg,
             debug: {
                 platform: 'YouTube',
                 url,
                 quality,
+                timestamp: new Date().toISOString(),
+                executionTime: `${Date.now() - startTime}ms`,
                 originalError: error.message
             }
         });
     }
 }
-
 // ======================== YOUTUBE AUDIO - IMPROVED ========================
 async function handleYouTubeAudio(req, res) {
     const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
