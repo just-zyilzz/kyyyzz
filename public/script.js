@@ -422,14 +422,15 @@ async function handleUrlDownload(url) {
   let metadata;
 
   // Get metadata based on platform
-  if (platform === 'YouTube') {
-    try {
-      // Use GET for metadata
-      const res = await fetchWithRetry(`/api/utils/utility?action=thumbnail&url=${encodeURIComponent(url)}`, {
-        method: 'GET'
-      }, 1, 10000); // Increased timeout to 10s
-      metadata = await res.json();
-    } catch (error) {
+    if (platform === 'YouTube') {
+      try {
+        const res = await fetchWithRetry('/api/utils/utility', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'thumbnail', url })
+        }, 1, 10000); // Increased timeout to 10s
+        metadata = await res.json();
+      } catch (error) {
       console.error('YouTube metadata error:', error.message);
       metadata = { success: true, title: 'YouTube Video', platform: 'YouTube', thumbnail: null };
     }
@@ -446,15 +447,17 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'Instagram') {
     try {
-      // Use GET for metadata
-      const res = await fetchWithRetry(`/api/downloaders/download?platform=instagram&url=${encodeURIComponent(url)}&metadata=true`, {
-        method: 'GET'
+      // Increased timeout to 15 seconds for better reliability
+      const res = await fetchWithRetry('/api/downloaders/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: 'instagram', url, metadata: true })
       }, 2, 15000); // 15 second timeout
       metadata = await res.json();
 
       // Fetch full data if carousel detected in metadata
       if (metadata.success && !metadata.isCarousel) {
-        // Try to get full carousel data using POST
+        // Try to get full carousel data
         try {
           const fullRes = await fetchWithRetry('/api/downloaders/download', {
             method: 'POST',
@@ -475,9 +478,11 @@ async function handleUrlDownload(url) {
     }
   } else if (platform === 'Douyin') {
     try {
-      // Use GET for metadata
-      const res = await fetchWithRetry(`/api/downloaders/download?platform=douyin&url=${encodeURIComponent(url)}&metadata=true`, {
-        method: 'GET'
+      // Increased timeout to 25 seconds for Douyin API
+      const res = await fetchWithRetry('/api/downloaders/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: 'douyin', url, metadata: true })
       }, 3, 25000); // 3 retries, 25 second timeout
       metadata = await res.json();
     } catch (error) {
@@ -911,7 +916,7 @@ async function download(url, format, platform) {
         if (platform === 'YouTube') {
           // Use proxy for YouTube to avoid CORS and ensure download
           const proxyUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&download=true&filename=${encodeURIComponent(fileName)}`;
-
+          
           try {
             // Trigger download via proxy
             window.location.href = proxyUrl;
