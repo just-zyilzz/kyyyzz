@@ -29,42 +29,71 @@ const ytSearch = require('yt-search');
 const axios = require('axios');
 
 async function youtubeVidssaveYtdl(url) {
-    const res = await axios.post(
-        'https://api.vidssave.com/api/contentsite_api/media/parse',
-        new URLSearchParams({
-            auth: '20250901majwlqo',
-            domain: 'api-ak.vidssave.com',
-            origin: 'cache',
-            link: url
-        }).toString(),
-        {
-            headers: {
-                'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
-                'content-type': 'application/x-www-form-urlencoded',
-                origin: 'https://vidssave.com',
-                referer: 'https://vidssave.com/'
+    const attempts = [
+        { domain: 'api-ak.vidssave.com', origin: 'cache' },
+        { domain: 'api.vidssave.com', origin: 'cache' },
+        { domain: 'api-ak.vidssave.com', origin: 'direct' }
+    ];
+
+    let lastError;
+
+    for (const attempt of attempts) {
+        for (let i = 0; i < 2; i++) {
+            try {
+                const res = await axios.post(
+                    'https://api.vidssave.com/api/contentsite_api/media/parse',
+                    new URLSearchParams({
+                        auth: '20250901majwlqo',
+                        domain: attempt.domain,
+                        origin: attempt.origin,
+                        link: url
+                    }).toString(),
+                    {
+                        headers: {
+                            'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+                            'content-type': 'application/x-www-form-urlencoded',
+                            'accept': 'application/json, text/plain, */*',
+                            'accept-language': 'en-US,en;q=0.9,id;q=0.8',
+                            origin: 'https://vidssave.com',
+                            referer: 'https://vidssave.com/'
+                        },
+                        timeout: 20000,
+                        validateStatus: () => true
+                    }
+                );
+
+                if (res.status < 200 || res.status >= 300) {
+                    const msg = (res.data && (res.data.msg || res.data.message)) || `VidsSave HTTP ${res.status}`;
+                    throw new Error(msg);
+                }
+
+                const data = res.data && res.data.data;
+                if (!data || !Array.isArray(data.resources)) {
+                    const msg = res.data && res.data.msg ? res.data.msg : 'Gagal mengambil data dari Vidssave';
+                    throw new Error(msg);
+                }
+
+                return {
+                    title: data.title,
+                    thumbnail: data.thumbnail,
+                    duration: data.duration,
+                    formats: data.resources.map(r => ({
+                        type: typeof r.type === 'string' ? r.type.toLowerCase() : r.type,
+                        quality: r.quality,
+                        format: typeof r.format === 'string' ? r.format.toLowerCase() : r.format,
+                        size: r.size,
+                        url: r.download_url
+                    }))
+                };
+            } catch (err) {
+                lastError = err;
+                const waitMs = 500 * (i + 1);
+                await new Promise(r => setTimeout(r, waitMs));
             }
         }
-    );
-
-    const data = res.data && res.data.data;
-    if (!data || !Array.isArray(data.resources)) {
-        const msg = res.data && res.data.msg ? res.data.msg : 'Gagal mengambil data dari Vidssave';
-        throw new Error(msg);
     }
 
-    return {
-        title: data.title,
-        thumbnail: data.thumbnail,
-        duration: data.duration,
-        formats: data.resources.map(r => ({
-            type: typeof r.type === 'string' ? r.type.toLowerCase() : r.type,
-            quality: r.quality,
-            format: typeof r.format === 'string' ? r.format.toLowerCase() : r.format,
-            size: r.size,
-            url: r.download_url
-        }))
-    };
+    throw lastError || new Error('Gagal mengambil data dari Vidssave');
 }
 
 async function saveHistory(req, url, title, platform, filename) {
@@ -300,7 +329,11 @@ async function handleYouTubeAudio(req, res) {
 
     } catch (error) {
         console.error('❌ YouTube Audio download error:', error.message);
-        return res.status(500).json({ success: false, error: 'Download audio gagal. Coba lagi nanti.' });
+        return res.status(500).json({
+            success: false,
+            error: 'Download audio gagal. Coba lagi nanti.',
+            debug: { error: error.message }
+        });
     }
 }
 
@@ -814,8 +847,18 @@ module.exports = async (req, res) => {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
+    if (req.method === 'POST' && typeof req.body === 'string') {
+        try {
+            req.body = JSON.parse(req.body);
+        } catch { }
+    }
+
     // Get platform parameter
-    const platform = (req.method === 'POST' ? req.body.platform : req.query.platform) || '';
+    const platform = (
+        (req.method === 'POST' ? (req.body && req.body.platform) : undefined) ||
+        (req.query && req.query.platform) ||
+        ''
+    );
 
     // Route to appropriate handler
     switch (platform.toLowerCase()) {

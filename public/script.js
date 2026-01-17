@@ -440,7 +440,7 @@ async function handleUrlDownload(url) {
   // Get metadata based on platform
     if (platform === 'YouTube') {
       try {
-        const res = await fetchWithRetry(`/api/downloaders/download?platform=youtube&url=${encodeURIComponent(url)}&metadata=true`, {
+        const res = await fetchWithRetry(`/api/downloaders/youtube?url=${encodeURIComponent(url)}&metadata=true`, {
           method: 'GET'
         }, 2, 15000);
         metadata = await res.json();
@@ -451,7 +451,7 @@ async function handleUrlDownload(url) {
   } else if (platform === 'TikTok') {
     try {
       // Use GET method with metadata=true for faster preview
-      const res = await fetchWithRetry(`/api/downloaders/download?platform=tiktok&url=${encodeURIComponent(url)}&metadata=true`, {
+      const res = await fetchWithRetry(`/api/downloaders/tiktok?url=${encodeURIComponent(url)}&metadata=true`, {
         method: 'GET'
       }, 2, 15000); // 2 retries, 15 second timeout
       metadata = await res.json();
@@ -534,7 +534,7 @@ async function handleUrlDownload(url) {
   } else if (platform === 'Twitter') {
     // Twitter/X - get video metadata
     try {
-      const res = await fetchWithRetry(`/api/downloaders/download?platform=twitter&url=${encodeURIComponent(url)}&metadata=true`, {
+      const res = await fetchWithRetry(`/api/downloaders/twitter?url=${encodeURIComponent(url)}&metadata=true`, {
         method: 'GET'
       }, 2, 10000);
       metadata = await res.json();
@@ -545,7 +545,7 @@ async function handleUrlDownload(url) {
   } else if (platform === 'Pinterest') {
     // Pinterest - get pin metadata
     try {
-      const res = await fetchWithRetry(`/api/downloaders/download?platform=pinterest&url=${encodeURIComponent(url)}&metadata=true`, {
+      const res = await fetchWithRetry(`/api/downloaders/pinterest?url=${encodeURIComponent(url)}&metadata=true`, {
         method: 'GET'
       }, 2, 10000);
       metadata = await res.json();
@@ -851,27 +851,27 @@ async function download(url, format, platform) {
 
     // Determine endpoint and body based on platform and format
     if (platform === 'YouTube') {
-      endpoint = '/api/downloaders/download';
+      endpoint = format === 'audio' ? '/api/downloaders/youtube-audio' : '/api/downloaders/youtube';
       body.platform = format === 'audio' ? 'youtube-audio' : 'youtube';
       if (format !== 'audio') {
         body.quality = '720';
       }
     } else if (platform === 'TikTok') {
-      endpoint = '/api/downloaders/download';
+      endpoint = '/api/downloaders/tiktok';
       body.platform = 'tiktok';
       body.format = format;
     } else if (platform === 'Douyin') {
-      endpoint = '/api/downloaders/download';
+      endpoint = '/api/downloaders/douyin';
       body.platform = 'douyin';
       body.format = format;
     } else if (platform === 'Instagram') {
-      endpoint = '/api/downloaders/download';
+      endpoint = '/api/downloaders/instagram';
       body.platform = 'instagram';
     } else if (platform === 'Twitter') {
-      endpoint = '/api/downloaders/download';
+      endpoint = '/api/downloaders/twitter';
       body.platform = 'twitter';
     } else if (platform === 'Pinterest') {
-      endpoint = '/api/downloaders/download';
+      endpoint = '/api/downloaders/pinterest';
       body.platform = 'pinterest';
     } else {
       throw new Error('Platform tidak didukung');

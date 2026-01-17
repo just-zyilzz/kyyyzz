@@ -2,6 +2,38 @@
     "version": 2,
     "routes": [
         {
+            "src": "/api/downloaders/youtube$",
+            "dest": "/api/downloaders/download?platform=youtube"
+        },
+        {
+            "src": "/api/downloaders/youtube-audio$",
+            "dest": "/api/downloaders/download?platform=youtube-audio"
+        },
+        {
+            "src": "/api/downloaders/tiktok$",
+            "dest": "/api/downloaders/download?platform=tiktok"
+        },
+        {
+            "src": "/api/downloaders/instagram$",
+            "dest": "/api/downloaders/download?platform=instagram"
+        },
+        {
+            "src": "/api/downloaders/douyin$",
+            "dest": "/api/downloaders/download?platform=douyin"
+        },
+        {
+            "src": "/api/downloaders/twitter$",
+            "dest": "/api/downloaders/download?platform=twitter"
+        },
+        {
+            "src": "/api/downloaders/spotify$",
+            "dest": "/api/downloaders/download?platform=spotify"
+        },
+        {
+            "src": "/api/downloaders/pinterest$",
+            "dest": "/api/downloaders/download?platform=pinterest"
+        },
+        {
             "src": "/api/(.*)",
             "dest": "/api/$1"
         },

@@ -29,10 +29,31 @@ const mimeTypes = {
 };
 
 // API route handlers
+const downloadHandler = require('./api/downloaders/download.js');
+
+function withPlatform(platform) {
+    return async (req, res) => {
+        req.query = req.query || {};
+        req.query.platform = req.query.platform || platform;
+        if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+            req.body.platform = req.body.platform || platform;
+        }
+        return downloadHandler(req, res);
+    };
+}
+
 const apiHandlers = {
     '/api/auth': require('./api/auth.js'),
     '/api/user': require('./api/user.js'),
-    '/api/downloaders/download': require('./api/downloaders/download.js'),
+    '/api/downloaders/download': downloadHandler,
+    '/api/downloaders/youtube': withPlatform('youtube'),
+    '/api/downloaders/youtube-audio': withPlatform('youtube-audio'),
+    '/api/downloaders/tiktok': withPlatform('tiktok'),
+    '/api/downloaders/instagram': withPlatform('instagram'),
+    '/api/downloaders/douyin': withPlatform('douyin'),
+    '/api/downloaders/twitter': withPlatform('twitter'),
+    '/api/downloaders/spotify': withPlatform('spotify'),
+    '/api/downloaders/pinterest': withPlatform('pinterest'),
     '/api/utils/utility': require('./api/utils/utility.js'),
     '/api/pinterest-proxy': require('./api/pinterest-proxy.js')
 };
