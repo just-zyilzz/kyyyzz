@@ -17,6 +17,7 @@
  */
 
 const yt2 = require('../../lib/yt2'); // YouTube download API (SaveTube)
+const yt1 = require('../../lib/yt1'); // YouTube fallback (ytmp3.gg)
 const { tiktokDownloaderVideo } = require('../../lib/tiktok');
 const Instagram = require('../../lib/instagram');
 const { instagramDownload } = require('../../lib/scrapers');
@@ -82,136 +83,102 @@ async function handleYouTube(req, res) {
         const targetQuality = quality || '720';
         let info;
 
+        // --- PRIMARY: YT2 (Vidssave) ---
         try {
             console.log('[YouTube Video] Calling yt2.ytdl...');
             const yt2Data = await yt2.ytdl(url);
-            console.log(`[YouTube Video] yt2.ytdl completed in ${Date.now() - startTime}ms`);
 
-            if (!yt2Data) {
-                throw new Error('yt2.ytdl returned null/undefined');
-            }
-
-            if (!yt2Data.formats || !Array.isArray(yt2Data.formats) || yt2Data.formats.length === 0) {
-                console.error('[YouTube Video] No formats in response:', JSON.stringify(yt2Data));
-                throw new Error('No formats available from API');
-            }
-
-            console.log(`[YouTube Video] Found ${yt2Data.formats.length} formats`);
-
-            // Filter MP4 video formats
-            const mp4Formats = yt2Data.formats.filter(f =>
-                f.type === 'video' &&
-                f.format === 'mp4' &&
-                f.url
-            );
-
-            console.log(`[YouTube Video] Found ${mp4Formats.length} MP4 formats`);
-
-            if (mp4Formats.length === 0) {
-                console.error('[YouTube Video] Available formats:', JSON.stringify(yt2Data.formats.map(f => ({
-                    type: f.type,
-                    format: f.format,
-                    quality: f.quality,
-                    hasUrl: !!f.url
-                }))));
-                throw new Error('No MP4 format available');
-            }
-
-            // Sort by quality (descending)
-            mp4Formats.sort((a, b) => {
-                const qA = parseInt(a.quality) || 0;
-                const qB = parseInt(b.quality) || 0;
-                return qB - qA;
-            });
-
-            // Match target quality or pick best
-            let selectedFormat = mp4Formats.find(f => f.quality === targetQuality);
-            if (!selectedFormat) {
-                const targetNum = parseInt(targetQuality);
-                selectedFormat = mp4Formats.reduce((prev, curr) => {
-                    const prevDiff = Math.abs(parseInt(prev.quality) - targetNum);
-                    const currDiff = Math.abs(parseInt(curr.quality) - targetNum);
-                    return currDiff < prevDiff ? curr : prev;
-                });
-            }
-
-            console.log(`[YouTube Video] Selected format: ${selectedFormat.quality}p`);
-
-            info = {
-                title: yt2Data.title || 'YouTube Video',
-                thumbnail: yt2Data.thumbnail || null,
-                duration: yt2Data.duration || 0,
-                quality: selectedFormat.quality,
-                url: selectedFormat.url,
-                filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp4`
-            };
-
-            console.log(`✅ [YouTube Video] Success in ${Date.now() - startTime}ms`);
-        } catch (yt2Error) {
-            console.error(`❌ [YouTube Video] yt2 failed in ${Date.now() - startTime}ms:`, yt2Error.message);
-            console.error('[YouTube Video] Full error:', yt2Error);
-
-            // Return detailed error for debugging
-            return res.status(500).json({
-                success: false,
-                error: `Download API gagal: ${yt2Error.message}`,
-                debug: {
-                    platform: 'YouTube',
-                    url,
-                    quality,
-                    timestamp: new Date().toISOString(),
-                    executionTime: `${Date.now() - startTime}ms`,
-                    errorType: yt2Error.name,
-                    errorMessage: yt2Error.message,
-                    errorStack: yt2Error.stack?.split('\n').slice(0, 3).join('\n')
+            if (yt2Data) {
+                if (!yt2Data.formats || !Array.isArray(yt2Data.formats)) {
+                    throw new Error('No formats available from yt2');
                 }
-            });
+
+                // Filter MP4 formats
+                const mp4Formats = yt2Data.formats.filter(f =>
+                    f.type === 'video' &&
+                    f.format === 'mp4' &&
+                    f.url
+                );
+
+                if (mp4Formats.length > 0) {
+                    // Sort by quality (descending)
+                    mp4Formats.sort((a, b) => {
+                        const qA = parseInt(a.quality) || 0;
+                        const qB = parseInt(b.quality) || 0;
+                        return qB - qA;
+                    });
+
+                    // Match target quality or pick best
+                    let selectedFormat = mp4Formats.find(f => f.quality === targetQuality);
+                    if (!selectedFormat) {
+                        const targetNum = parseInt(targetQuality);
+                        selectedFormat = mp4Formats.reduce((prev, curr) => {
+                            const prevDiff = Math.abs(parseInt(prev.quality) - targetNum);
+                            const currDiff = Math.abs(parseInt(curr.quality) - targetNum);
+                            return currDiff < prevDiff ? curr : prev;
+                        });
+                    }
+
+                    info = {
+                        title: yt2Data.title || 'YouTube Video',
+                        thumbnail: yt2Data.thumbnail || null,
+                        duration: yt2Data.duration || 0,
+                        quality: selectedFormat.quality,
+                        url: selectedFormat.url,
+                        filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp4`
+                    };
+                    console.log(`✅ [YouTube Video] yt2 success`);
+                }
+            }
+        } catch (yt2Error) {
+            console.error(`❌ [YouTube Video] yt2 failed:`, yt2Error.message);
         }
 
-        const fileName = info.filename || `youtube_${Date.now()}.mp4`;
-        await saveHistory(req, url, info.title || 'YouTube Video', 'YouTube', fileName);
+        // --- FALLBACK: YT1 (ytmp3.gg) ---
+        if (!info) {
+            console.log('[YouTube Video] Falling back to yt1...');
+            try {
+                const yt1Data = await yt1.ytdl(url, 'mp4', targetQuality);
+                if (yt1Data && yt1Data.url) {
+                    console.log(`✅ [YouTube Video] yt1 Success`);
+                    info = {
+                        title: yt1Data.title,
+                        thumbnail: yt1Data.thumbnail,
+                        duration: yt1Data.duration,
+                        quality: yt1Data.quality,
+                        url: yt1Data.url,
+                        filename: yt1Data.filename
+                    };
+                }
+            } catch (yt1Error) {
+                console.error(`❌ [YouTube Video] yt1 failed:`, yt1Error.message);
+            }
+        }
 
-        console.log(`[YouTube Video] Returning success response`);
+        // --- FINAL CHECK ---
+        if (!info) {
+            throw new Error('Gagal download dari semua server available.');
+        }
+
+        await saveHistory(req, url, info.title, 'YouTube', info.filename);
 
         return res.json({
             success: true,
-            title: info.title || 'YouTube Video',
-            thumbnail: info.thumbnail || null,
+            title: info.title,
+            thumbnail: info.thumbnail,
+            duration: info.duration,
+            quality: info.quality,
             downloadUrl: info.url,
-            streamUrl: info.url,
-            autoDownloadUrl: info.url,
-            fileName: fileName,
-            quality: info.quality || targetQuality,
-            duration: info.duration || 0,
-            uploader: info.uploader || null,
-            executionTime: `${Date.now() - startTime}ms`
+            fileName: info.filename,
+            platform: 'YouTube'
         });
+
     } catch (error) {
-        console.error(`❌ [YouTube Video] Unexpected error in ${Date.now() - startTime}ms:`, error);
-
-        let errorMsg = error.message || 'Download gagal';
-
-        if (errorMsg.includes('Empty response') || errorMsg.includes('Invalid API')) {
-            errorMsg = 'Server download sedang sibuk. Coba lagi dalam beberapa saat.';
-        } else if (errorMsg.includes('No formats') || errorMsg.includes('No MP4')) {
-            errorMsg = 'Video tidak tersedia atau format tidak didukung.';
-        } else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
-            errorMsg = 'Timeout saat download. Coba lagi.';
-        } else if (errorMsg.includes('Network') || errorMsg.includes('ECONNREFUSED')) {
-            errorMsg = 'Koneksi ke server gagal. Periksa internet Anda.';
-        }
-
+        console.error(`❌ [YouTube Video] Critical error in ${Date.now() - startTime}ms:`, error.message);
         return res.status(500).json({
             success: false,
-            error: errorMsg,
-            debug: {
-                platform: 'YouTube',
-                url,
-                quality,
-                timestamp: new Date().toISOString(),
-                executionTime: `${Date.now() - startTime}ms`,
-                originalError: error.message
-            }
+            error: 'Download gagal. Server sibuk atau video tidak didukung.',
+            debug: { error: error.message }
         });
     }
 }
@@ -219,7 +186,6 @@ async function handleYouTube(req, res) {
 async function handleYouTubeAudio(req, res) {
     const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
 
-    // Allow both GET and POST for downloads
     if (metadataOnly && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
     }
@@ -237,87 +203,88 @@ async function handleYouTubeAudio(req, res) {
     }
 
     try {
-        console.log(`[YouTube Audio] URL: ${url}`);
         let info;
 
+        // --- PRIMARY: YT2 (Vidssave) ---
         try {
+            console.log('[YouTube Audio] Calling yt2.ytdl...');
             const yt2Data = await yt2.ytdl(url);
 
-            if (!yt2Data || !yt2Data.formats || yt2Data.formats.length === 0) {
-                throw new Error('No formats available from API');
+            if (yt2Data) {
+                if (!yt2Data.formats || !Array.isArray(yt2Data.formats)) {
+                    throw new Error('No formats available from yt2');
+                }
+
+                // Filter audio formats
+                const audioFormats = yt2Data.formats.filter(f =>
+                    (f.type === 'audio' || f.format === 'mp3' || f.format === 'm4a') &&
+                    f.url
+                );
+
+                if (audioFormats.length > 0) {
+                    // Pick best audio
+                    audioFormats.sort((a, b) => (b.size || 0) - (a.size || 0));
+                    const selectedFormat = audioFormats[0];
+
+                    info = {
+                        title: yt2Data.title || 'YouTube Audio',
+                        thumbnail: yt2Data.thumbnail || null,
+                        duration: yt2Data.duration || 0,
+                        quality: '128kbps',
+                        url: selectedFormat.url,
+                        filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp3`
+                    };
+                    console.log(`✅ [YouTube Audio] yt2 Success`);
+                }
             }
-
-            // Filter audio formats
-            const audioFormats = yt2Data.formats.filter(f =>
-                f.type === 'audio' &&
-                f.url
-            );
-
-            if (audioFormats.length === 0) {
-                throw new Error('No audio format available');
-            }
-
-            // Sort by quality (descending)
-            audioFormats.sort((a, b) => {
-                const qA = parseInt(a.quality) || 0;
-                const qB = parseInt(b.quality) || 0;
-                return qB - qA;
-            });
-
-            const selectedFormat = audioFormats[0];
-
-            info = {
-                title: yt2Data.title || 'YouTube Audio',
-                thumbnail: yt2Data.thumbnail || null,
-                duration: yt2Data.duration || 0,
-                quality: selectedFormat.quality,
-                url: selectedFormat.url,
-                filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.${selectedFormat.format || 'mp3'}`
-            };
-
-            console.log('✅ yt2 success (Audio)');
         } catch (yt2Error) {
-            console.error('❌ yt2 audio failed:', yt2Error.message);
-            throw new Error(`Download API gagal: ${yt2Error.message}`);
+            console.error(`❌ [YouTube Audio] yt2 failed:`, yt2Error.message);
         }
 
-        const fileName = info.filename || `youtube_audio_${Date.now()}.mp3`;
-        await saveHistory(req, url, info.title || 'YouTube Audio', 'YouTube Audio', fileName);
+        // --- FALLBACK: YT1 (ytmp3.gg) ---
+        if (!info) {
+            console.log('[YouTube Audio] Falling back to yt1...');
+            try {
+                // FALLBACK TO YT1
+                const yt1Data = await yt1.ytdl(url, 'mp3', '128');
+
+                if (yt1Data && yt1Data.url) {
+                    console.log(`✅ [YouTube Audio] yt1 Success`);
+                    info = {
+                        title: yt1Data.title,
+                        thumbnail: yt1Data.thumbnail,
+                        duration: yt1Data.duration,
+                        quality: yt1Data.quality,
+                        url: yt1Data.url,
+                        filename: yt1Data.filename
+                    };
+                }
+            } catch (yt1Error) {
+                console.error(`❌ [YouTube Audio] yt1 failed:`, yt1Error.message);
+            }
+        }
+
+        // --- FINAL CHECK ---
+        if (!info) {
+            throw new Error('Gagal download audio dari semua server.');
+        }
+
+        await saveHistory(req, url, info.title, 'YouTube Audio', info.filename);
 
         return res.json({
             success: true,
-            title: info.title || 'YouTube Audio',
-            thumbnail: info.thumbnail || null,
+            title: info.title,
+            thumbnail: info.thumbnail,
+            duration: info.duration,
+            quality: info.quality,
             downloadUrl: info.url,
-            streamUrl: info.url,
-            autoDownloadUrl: info.url,
-            fileName: fileName,
-            format: 'mp3',
-            duration: info.duration || 0,
-            uploader: info.uploader || null
+            fileName: info.filename,
+            platform: 'YouTube'
         });
+
     } catch (error) {
-        console.error('❌ YouTube audio download error:', error.message);
-
-        let errorMsg = error.message || 'Download audio gagal';
-
-        if (errorMsg.includes('Empty response') || errorMsg.includes('Invalid API')) {
-            errorMsg = 'Server download sedang sibuk. Coba lagi dalam beberapa saat.';
-        } else if (errorMsg.includes('No audio')) {
-            errorMsg = 'Audio tidak tersedia untuk video ini.';
-        } else if (errorMsg.includes('timeout')) {
-            errorMsg = 'Timeout saat download. Coba lagi.';
-        }
-
-        return res.status(503).json({
-            success: false,
-            error: errorMsg,
-            debug: {
-                platform: 'YouTube Audio',
-                url,
-                originalError: error.message
-            }
-        });
+        console.error('❌ YouTube Audio download error:', error.message);
+        return res.status(500).json({ success: false, error: 'Download audio gagal. Coba lagi nanti.' });
     }
 }
 
