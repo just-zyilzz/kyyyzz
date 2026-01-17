@@ -933,40 +933,25 @@ async function download(url, format, platform) {
       if (downloadUrl) {
         popup.textContent = '⏳ Starting download...';
 
-        if (platform === 'YouTube') {
-          const proxyUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&download=true&filename=${encodeURIComponent(fileName)}`;
-          
-          try {
-            window.location.href = proxyUrl;
-            popup.textContent = '✅ Download dimulai!';
-            popup.className = 'popup show popup-success';
-          } catch (e) {
-            console.error('Download trigger error:', e);
-            window.open(proxyUrl, '_blank');
-            popup.textContent = '✅ Dibuka di tab baru!';
-            popup.className = 'popup show popup-success';
-          }
+        let primaryUrl = downloadUrl;
+        let proxyUrl = null;
+
+        if (platform === 'TikTok' || platform === 'Douyin') {
+          proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
+        } else if (platform === 'Instagram') {
+          proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
+        } else if (platform === 'Pinterest') {
+          proxyUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
+        }
+
+        const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
+
+        if (downloaded) {
+          popup.textContent = '✅ Download selesai!';
+          popup.className = 'popup show popup-success';
         } else {
-          let primaryUrl = downloadUrl;
-          let proxyUrl = null;
-
-          if (platform === 'TikTok' || platform === 'Douyin') {
-            proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
-          } else if (platform === 'Instagram') {
-            proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
-          } else if (platform === 'Pinterest') {
-            proxyUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
-          }
-
-          const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
-
-          if (downloaded) {
-            popup.textContent = '✅ Download selesai!';
-            popup.className = 'popup show popup-success';
-          } else {
-            popup.textContent = '✅ Dibuka di tab baru!';
-            popup.className = 'popup show popup-success';
-          }
+          popup.textContent = '✅ Dibuka di tab baru!';
+          popup.className = 'popup show popup-success';
         }
 
         setTimeout(() => popup.classList.remove('show'), 3000);

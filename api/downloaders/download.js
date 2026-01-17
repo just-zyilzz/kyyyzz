@@ -86,6 +86,53 @@ function sanitizeUrl(url) {
     return u;
 }
 
+function extractYouTubeId(url) {
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
+    ];
+
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return match[1];
+    }
+    return null;
+}
+
+async function getYouTubePreviewMetadata(url) {
+    const videoId = extractYouTubeId(url);
+    if (!videoId) {
+        throw new Error('Invalid YouTube URL');
+    }
+
+    const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+
+    try {
+        const { data } = await axios.get(oembedUrl, {
+            timeout: 3000,
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MediaDownloader/1.0)' }
+        });
+
+        const thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+
+        return {
+            success: true,
+            title: data.title || 'YouTube Video',
+            thumbnail,
+            thumbnailUrl: thumbnail,
+            platform: 'YouTube'
+        };
+    } catch (error) {
+        const thumbnail = videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : null;
+        return {
+            success: true,
+            title: 'YouTube Video',
+            thumbnail,
+            thumbnailUrl: thumbnail,
+            platform: 'YouTube'
+        };
+    }
+}
+
 // ======================== YOUTUBE VIDEO - IMPROVED ========================
 async function handleYouTube(req, res) {
     const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
@@ -117,6 +164,11 @@ async function handleYouTube(req, res) {
     console.log(`[YouTube Video] URL: ${url}, Quality: ${quality}`);
 
     try {
+        if (metadataOnly) {
+            const meta = await getYouTubePreviewMetadata(url);
+            return res.json(meta);
+        }
+
         const targetQuality = quality || '720';
         console.log('[YouTube Video] Calling VidsSave API...');
         const ytData = await youtubeVidssaveYtdl(url);
