@@ -354,7 +354,7 @@ async function selectPinterestPin(url, title) {
 }
 
 // Fetch with timeout to prevent hanging
-async function fetchWithTimeout(url, options = {}, timeout = 6000) {
+async function fetchWithTimeout(url, options = {}, timeout = 15000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -368,30 +368,46 @@ async function fetchWithTimeout(url, options = {}, timeout = 6000) {
   } catch (error) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      throw new Error('Request timeout - API too slow');
+      throw new Error(`Request timeout (${timeout}ms) - Server terlalu lambat`);
     }
     throw error;
   }
 }
-
 // Fetch with automatic retry and exponential backoff
-async function fetchWithRetry(url, options = {}, retries = 1, timeout = 6000) {
+async function fetchWithRetry(url, options = {}, retries = 2, timeout = 15000) {
   for (let i = 0; i <= retries; i++) {
     try {
       const response = await fetchWithTimeout(url, options, timeout);
+      
+      // If server error (5xx), retry
+      if (response.status >= 500 && response.status < 600 && i < retries) {
+        console.log(`Server error ${response.status}, retrying... (${i + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        continue;
+      }
+      
       return response;
     } catch (error) {
       // If last retry, throw error
       if (i === retries) throw error;
 
-      // Fast retry: 300ms, max 1s
-      const delay = Math.min(300 * Math.pow(2, i), 1000);
+      // Check if it's a network error worth retrying
+      const isRetryable = (
+        error.name === 'AbortError' ||
+        error.message.includes('timeout') ||
+        error.message.includes('network') ||
+        error.message.includes('fetch')
+      );
+
+      if (!isRetryable) throw error;
+
+      // Progressive delay: 1s, 2s, 3s
+      const delay = 1000 * (i + 1);
       console.log(`Retry ${i + 1}/${retries} after ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 }
-
 // Select video from search results
 async function selectVideo(url, title) {
 
@@ -838,12 +854,9 @@ async function download(url, format, platform) {
     if (platform === 'YouTube') {
       endpoint = '/api/downloaders/download';
       body.platform = format === 'audio' ? 'youtube-audio' : 'youtube';
-      // Add default quality to prevent server errors with high resolutions
       if (format !== 'audio') {
         body.quality = '720';
       }
-      // For audio, ensure we don't send quality or send bitrate if backend expects it
-      // But based on current backend, it ignores quality for audio in handleYouTubeAudio
     } else if (platform === 'TikTok') {
       endpoint = '/api/downloaders/download';
       body.platform = 'tiktok';
@@ -872,18 +885,26 @@ async function download(url, format, platform) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    }, 1, timeout);
+    }, 2, timeout);
 
     let data;
     try {
       data = await res.json();
     } catch (parseErr) {
       const text = await res.text().catch(() => '');
-      throw new Error(text || ('Network error ' + res.status + ' ' + res.statusText));
+      console.error('Failed to parse response:', text);
+      throw new Error('Server mengembalikan response yang tidak valid');
     }
 
     if (!res.ok) {
-      throw new Error(data.error || 'Gagal download');
+      if (res.status === 503) {
+        throw new Error('Server sedang sibuk. Coba lagi dalam beberapa saat.');
+      } else if (res.status === 429) {
+        throw new Error('Terlalu banyak request. Tunggu sebentar.');
+      } else if (res.status >= 500) {
+        throw new Error('Server error. Coba lagi nanti.');
+      }
+      throw new Error(data.error || `Error ${res.status}: Gagal download`);
     }
 
     if (data.success) {
@@ -911,21 +932,20 @@ async function download(url, format, platform) {
       }
 
       if (downloadUrl) {
-        popup.textContent = '⏳ Starting...';
+        popup.textContent = '⏳ Starting download...';
 
         if (platform === 'YouTube') {
-          // Use proxy for YouTube to avoid CORS and ensure download
           const proxyUrl = `/api/utils/utility?action=yt-proxy&url=${encodeURIComponent(downloadUrl)}&download=true&filename=${encodeURIComponent(fileName)}`;
           
           try {
-            // Trigger download via proxy
             window.location.href = proxyUrl;
-            popup.textContent = '✅ Download started!';
+            popup.textContent = '✅ Download dimulai!';
+            popup.className = 'popup show popup-success';
           } catch (e) {
             console.error('Download trigger error:', e);
-            // Fallback
             window.open(proxyUrl, '_blank');
-            popup.textContent = '✅ Opened in new tab!';
+            popup.textContent = '✅ Dibuka di tab baru!';
+            popup.className = 'popup show popup-success';
           }
         } else {
           let primaryUrl = downloadUrl;
@@ -942,13 +962,14 @@ async function download(url, format, platform) {
           const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
 
           if (downloaded) {
-            popup.textContent = '✅ Done!';
+            popup.textContent = '✅ Download selesai!';
+            popup.className = 'popup show popup-success';
           } else {
-            popup.textContent = '✅ Opened!';
+            popup.textContent = '✅ Dibuka di tab baru!';
+            popup.className = 'popup show popup-success';
           }
         }
 
-        popup.className = 'popup show popup-success';
         setTimeout(() => popup.classList.remove('show'), 3000);
       } else {
         throw new Error('Download URL tidak ditemukan');
@@ -958,14 +979,26 @@ async function download(url, format, platform) {
     }
   } catch (e) {
     console.error('Download error:', e);
-    popup.textContent = '❌ ' + (e.message || 'Failed!');
+    
+    let errorMsg = e.message || 'Download gagal';
+    
+    if (errorMsg.includes('Timeout') || errorMsg.includes('timeout')) {
+      errorMsg = '⏱️ Request timeout. Server terlalu lambat, coba lagi.';
+    } else if (errorMsg.includes('Network') || errorMsg.includes('Failed to fetch')) {
+      errorMsg = '🌐 Koneksi internet bermasalah. Periksa koneksi Anda.';
+    } else if (errorMsg.includes('sibuk')) {
+      errorMsg = '⚠️ Server sedang sibuk. Tunggu 10-30 detik lalu coba lagi.';
+    } else if (!errorMsg.startsWith('❌') && !errorMsg.startsWith('⚠️')) {
+      errorMsg = '❌ ' + errorMsg;
+    }
+    
+    popup.textContent = errorMsg;
     popup.className = 'popup show popup-error';
     setTimeout(() => {
       popup.classList.remove('show');
     }, 5000);
   }
 }
-
 // Download Instagram carousel item using proxy
 async function downloadCarouselItem(mediaUrl, index) {
   const popup = document.getElementById('popup');
