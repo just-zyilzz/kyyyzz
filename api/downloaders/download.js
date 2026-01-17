@@ -52,11 +52,10 @@ function sanitizeUrl(url) {
 async function handleYouTube(req, res) {
     const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
 
+    // Allow both GET and POST for downloads (more flexible)
+    // Only enforce GET for metadata requests
     if (metadataOnly && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
-    }
-    if (!metadataOnly && req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
     }
 
     let url = req.method === 'POST' ? req.body.url : req.query.url;
@@ -100,9 +99,9 @@ async function handleYouTube(req, res) {
             console.log(`[YouTube Video] Found ${yt2Data.formats.length} formats`);
 
             // Filter MP4 video formats
-            const mp4Formats = yt2Data.formats.filter(f => 
-                f.type === 'video' && 
-                f.format === 'mp4' && 
+            const mp4Formats = yt2Data.formats.filter(f =>
+                f.type === 'video' &&
+                f.format === 'mp4' &&
                 f.url
             );
 
@@ -146,12 +145,12 @@ async function handleYouTube(req, res) {
                 url: selectedFormat.url,
                 filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.mp4`
             };
-            
+
             console.log(`✅ [YouTube Video] Success in ${Date.now() - startTime}ms`);
         } catch (yt2Error) {
             console.error(`❌ [YouTube Video] yt2 failed in ${Date.now() - startTime}ms:`, yt2Error.message);
             console.error('[YouTube Video] Full error:', yt2Error);
-            
+
             // Return detailed error for debugging
             return res.status(500).json({
                 success: false,
@@ -220,11 +219,9 @@ async function handleYouTube(req, res) {
 async function handleYouTubeAudio(req, res) {
     const metadataOnly = req.query.metadata === 'true' || req.body?.metadata === true;
 
+    // Allow both GET and POST for downloads
     if (metadataOnly && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Metadata requests must use GET method' });
-    }
-    if (!metadataOnly && req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Download requests must use POST method' });
     }
 
     let url = req.method === 'POST' ? req.body.url : req.query.url;
@@ -251,8 +248,8 @@ async function handleYouTubeAudio(req, res) {
             }
 
             // Filter audio formats
-            const audioFormats = yt2Data.formats.filter(f => 
-                f.type === 'audio' && 
+            const audioFormats = yt2Data.formats.filter(f =>
+                f.type === 'audio' &&
                 f.url
             );
 
@@ -277,7 +274,7 @@ async function handleYouTubeAudio(req, res) {
                 url: selectedFormat.url,
                 filename: `${(yt2Data.title || Date.now()).replace(/[/\\?%*:|"<>]/g, '_')}.${selectedFormat.format || 'mp3'}`
             };
-            
+
             console.log('✅ yt2 success (Audio)');
         } catch (yt2Error) {
             console.error('❌ yt2 audio failed:', yt2Error.message);
