@@ -32,7 +32,8 @@ async function youtubeVidssaveYtdl(url) {
     const attempts = [
         { domain: 'api-ak.vidssave.com', origin: 'cache' },
         { domain: 'api.vidssave.com', origin: 'cache' },
-        { domain: 'api-ak.vidssave.com', origin: 'direct' }
+        { domain: 'api-ak.vidssave.com', origin: 'direct' },
+        { domain: 'api.vidssave.com', origin: 'direct' }
     ];
 
     let lastError;
@@ -40,31 +41,38 @@ async function youtubeVidssaveYtdl(url) {
     for (const attempt of attempts) {
         for (let i = 0; i < 2; i++) {
             try {
+                // Generate a random auth token-like string to avoid potential caching/blocking
+                const randomAuth = '2025' + Math.random().toString(36).substring(2, 15);
+                
                 const res = await axios.post(
-                    'https://api.vidssave.com/api/contentsite_api/media/parse',
+                    `https://${attempt.domain}/api/contentsite_api/media/parse`,
                     new URLSearchParams({
-                        auth: '20250901majwlqo',
+                        auth: '20250901majwlqo', // Keep original auth as fallback/primary
                         domain: attempt.domain,
                         origin: attempt.origin,
                         link: url
                     }).toString(),
                     {
                         headers: {
-                            'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+                            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                             'content-type': 'application/x-www-form-urlencoded',
                             'accept': 'application/json, text/plain, */*',
-                            'accept-language': 'en-US,en;q=0.9,id;q=0.8',
-                            origin: 'https://vidssave.com',
-                            referer: 'https://vidssave.com/'
+                            'origin': 'https://vidssave.com',
+                            'referer': 'https://vidssave.com/'
                         },
-                        timeout: 20000,
+                        timeout: 25000, // Increased timeout
                         validateStatus: () => true
                     }
                 );
 
                 if (res.status < 200 || res.status >= 300) {
                     const msg = (res.data && (res.data.msg || res.data.message)) || `VidsSave HTTP ${res.status}`;
-                    throw new Error(msg);
+                    // Only throw if it's a server error (5xx) or rate limit (429), otherwise it might be invalid URL
+                    if (res.status >= 500 || res.status === 429) {
+                         throw new Error(msg);
+                    }
+                    // For 400 errors, return empty result to trigger next attempt
+                    if (res.status === 400) throw new Error(msg);
                 }
 
                 const data = res.data && res.data.data;
@@ -86,14 +94,15 @@ async function youtubeVidssaveYtdl(url) {
                     }))
                 };
             } catch (err) {
+                console.log(`[Vidssave] Attempt failed (${attempt.domain}/${attempt.origin}): ${err.message}`);
                 lastError = err;
-                const waitMs = 500 * (i + 1);
+                const waitMs = 1000 * (i + 1);
                 await new Promise(r => setTimeout(r, waitMs));
             }
         }
     }
 
-    throw lastError || new Error('Gagal mengambil data dari Vidssave');
+    throw lastError || new Error('Gagal mengambil data dari Vidssave (All mirrors failed)');
 }
 
 async function saveHistory(req, url, title, platform, filename) {

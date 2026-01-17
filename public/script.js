@@ -438,16 +438,16 @@ async function handleUrlDownload(url) {
   let metadata;
 
   // Get metadata based on platform
-    if (platform === 'YouTube') {
-      try {
-        const res = await fetchWithRetry(`/api/downloaders/youtube?url=${encodeURIComponent(url)}&metadata=true`, {
-          method: 'GET'
-        }, 2, 15000);
-        metadata = await res.json();
-      } catch (error) {
-        console.error('YouTube metadata error:', error.message);
-        metadata = { success: true, title: 'YouTube Video', platform: 'YouTube', thumbnail: null };
-      }
+  if (platform === 'YouTube') {
+    try {
+      const res = await fetchWithRetry(`/api/downloaders/youtube?url=${encodeURIComponent(url)}&metadata=true`, {
+        method: 'GET'
+      }, 2, 15000);
+      metadata = await res.json();
+    } catch (error) {
+      console.error('YouTube metadata error:', error.message);
+      metadata = { success: true, title: 'YouTube Video', platform: 'YouTube', thumbnail: null };
+    }
   } else if (platform === 'TikTok') {
     try {
       // Use GET method with metadata=true for faster preview
