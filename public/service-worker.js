@@ -1,9 +1,10 @@
 /**
  * Service Worker for kfocean Media Downloader PWA
  * Provides offline functionality and improves load performance
+ * FIXED: API requests bypass service worker completely
  */
 
-const CACHE_VERSION = 'v1.0.2-20260112';
+const CACHE_VERSION = 'v1.0.3-20260118';
 const CACHE_NAME = `kfocean-cache-${CACHE_VERSION}`;
 
 // Assets to cache on install
@@ -29,7 +30,6 @@ self.addEventListener('install', (event) => {
             })
             .then(() => {
                 console.log('[Service Worker] Installation complete');
-                // Force the waiting service worker to become the active service worker
                 return self.skipWaiting();
             })
             .catch((error) => {
@@ -56,7 +56,6 @@ self.addEventListener('activate', (event) => {
             })
             .then(() => {
                 console.log('[Service Worker] Activation complete');
-                // Take control of all pages immediately
                 return self.clients.claim();
             })
     );
@@ -67,17 +66,30 @@ self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
 
+    // ⚠️ CRITICAL FIX: Skip ALL API requests - let them go directly to network
+    // This prevents 503 errors and caching issues with dynamic API responses
+    if (request.url.includes('/api/')) {
+        console.log('[Service Worker] Bypassing API request:', request.url);
+        return; // Don't intercept - let browser handle it directly
+    }
+
     // Skip cross-origin requests
     if (url.origin !== location.origin) {
         return;
     }
 
-    // Different strategies for different types of requests
-    if (request.url.includes('/api/')) {
-        // API calls - Network first, fallback to cache
-        event.respondWith(networkFirst(request));
-    } else if (request.destination === 'document' || request.url.endsWith('.html') || request.url === url.origin + '/') {
-        // HTML files - Network first to ensure latest version
+    // Skip downloads and media proxies
+    if (request.url.includes('download=true') ||
+        request.url.includes('-proxy') ||
+        request.url.includes('/downloaders/')) {
+        console.log('[Service Worker] Bypassing download request:', request.url);
+        return;
+    }
+
+    // HTML files - Network first to ensure latest version
+    if (request.destination === 'document' ||
+        request.url.endsWith('.html') ||
+        request.url === url.origin + '/') {
         event.respondWith(networkFirst(request));
     } else {
         // Static assets (CSS, JS, images) - Cache first, fallback to network
@@ -122,7 +134,7 @@ async function cacheFirst(request) {
 }
 
 /**
- * Network First Strategy - For API calls
+ * Network First Strategy - For HTML pages
  * Try network first, fallback to cache if offline
  */
 async function networkFirst(request) {
@@ -131,7 +143,11 @@ async function networkFirst(request) {
     try {
         const response = await fetch(request);
 
-        // Don't cache API responses (always fetch fresh data)
+        // Cache HTML pages for offline access
+        if (response && response.status === 200) {
+            cache.put(request, response.clone());
+        }
+
         return response;
     } catch (error) {
         console.log('[Service Worker] Network failed, trying cache:', request.url);
@@ -151,21 +167,18 @@ self.addEventListener('message', (event) => {
         console.log('[Service Worker] Received SKIP_WAITING message');
         self.skipWaiting();
     }
+
+    // Clear all caches on demand
+    if (event.data && event.data.type === 'CLEAR_CACHE') {
+        console.log('[Service Worker] Clearing all caches');
+        event.waitUntil(
+            caches.keys().then((cacheNames) => {
+                return Promise.all(
+                    cacheNames.map((cacheName) => caches.delete(cacheName))
+                );
+            })
+        );
+    }
 });
 
-// Notify clients about new version available
-self.addEventListener('install', (event) => {
-    // Send message to all clients that a new version is available
-    event.waitUntil(
-        self.clients.matchAll().then((clients) => {
-            clients.forEach((client) => {
-                client.postMessage({
-                    type: 'NEW_VERSION_AVAILABLE',
-                    version: CACHE_VERSION
-                });
-            });
-        })
-    );
-});
-
-console.log('[Service Worker] Loaded');
+console.log('[Service Worker] Loaded - Version:', CACHE_VERSION);
