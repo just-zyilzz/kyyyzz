@@ -19,6 +19,7 @@ const axios = require('axios');
 const http = require('node:http');
 const https = require('node:https');
 const { searchPinterest } = require('../../lib/pinterest');
+const { createRequestConfig } = require('../../lib/utils');
 
 const httpAgent = new http.Agent({ keepAlive: true });
 const httpsAgent = new https.Agent({ keepAlive: true });
@@ -137,10 +138,12 @@ async function handleThumbnail(req, res) {
 
         const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
 
-        const { data } = await axios.get(oembedUrl, {
+        const { url: finalUrl, config } = createRequestConfig(oembedUrl, {
             timeout: 3000,
             headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MediaDownloader/1.0)' }
         });
+
+        const { data } = await axios.get(finalUrl, config);
 
         const thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
 
@@ -179,9 +182,8 @@ async function handleTikTokProxy(req, res) {
     try {
         console.log(`📡 TikTok Proxy [${type || 'media'}]: ${url}`);
 
-        const response = await axios({
+        const { url: finalUrl, config } = createRequestConfig(url, {
             method: 'GET',
-            url: url,
             responseType: 'stream',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -189,8 +191,10 @@ async function handleTikTokProxy(req, res) {
                 'Accept': type === 'thumbnail' ? 'image/webp,image/apng,image/*,*/*;q=0.8' : '*/*',
             },
             timeout: 30000,
-            maxRedirects: 5,
+            maxRedirects: 5
         });
+
+        const response = await axios(finalUrl, config);
 
         let contentType = response.headers['content-type'] || 'application/octet-stream';
 

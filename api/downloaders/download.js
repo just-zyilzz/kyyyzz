@@ -25,84 +25,24 @@ const { downloadDouyinVideo } = require('../../lib/douyin');
 const { downloadTwitterVideo } = require('../../lib/twitter');
 const { getSpotifyMetadata } = require('../../lib/spotify');
 const { savePin } = require('../../lib/pinterest');
+const { createRequestConfig } = require('../../lib/utils');
 const ytSearch = require('yt-search');
 const axios = require('axios');
+const { ytdl: vidssaveYtdl } = require('../../lib/vidssave');
 
+// Simple wrapper around vidssave module
 async function youtubeVidssaveYtdl(url) {
-    const attempts = [
-        { domain: 'api-ak.vidssave.com', origin: 'cache' },
-        { domain: 'api.vidssave.com', origin: 'cache' },
-        { domain: 'api-ak.vidssave.com', origin: 'direct' },
-        { domain: 'api.vidssave.com', origin: 'direct' }
-    ];
+    const result = await vidssaveYtdl(url);
 
-    let lastError;
-
-    for (const attempt of attempts) {
-        for (let i = 0; i < 2; i++) {
-            try {
-                // Generate a random auth token-like string to avoid potential caching/blocking
-                const randomAuth = '2025' + Math.random().toString(36).substring(2, 15);
-                
-                const res = await axios.post(
-                    `https://${attempt.domain}/api/contentsite_api/media/parse`,
-                    new URLSearchParams({
-                        auth: '20250901majwlqo', // Keep original auth as fallback/primary
-                        domain: attempt.domain,
-                        origin: attempt.origin,
-                        link: url
-                    }).toString(),
-                    {
-                        headers: {
-                            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                            'content-type': 'application/x-www-form-urlencoded',
-                            'accept': 'application/json, text/plain, */*',
-                            'origin': 'https://vidssave.com',
-                            'referer': 'https://vidssave.com/'
-                        },
-                        timeout: 25000, // Increased timeout
-                        validateStatus: () => true
-                    }
-                );
-
-                if (res.status < 200 || res.status >= 300) {
-                    const msg = (res.data && (res.data.msg || res.data.message)) || `VidsSave HTTP ${res.status}`;
-                    // Only throw if it's a server error (5xx) or rate limit (429), otherwise it might be invalid URL
-                    if (res.status >= 500 || res.status === 429) {
-                         throw new Error(msg);
-                    }
-                    // For 400 errors, return empty result to trigger next attempt
-                    if (res.status === 400) throw new Error(msg);
-                }
-
-                const data = res.data && res.data.data;
-                if (!data || !Array.isArray(data.resources)) {
-                    const msg = res.data && res.data.msg ? res.data.msg : 'Gagal mengambil data dari Vidssave';
-                    throw new Error(msg);
-                }
-
-                return {
-                    title: data.title,
-                    thumbnail: data.thumbnail,
-                    duration: data.duration,
-                    formats: data.resources.map(r => ({
-                        type: typeof r.type === 'string' ? r.type.toLowerCase() : r.type,
-                        quality: r.quality,
-                        format: typeof r.format === 'string' ? r.format.toLowerCase() : r.format,
-                        size: r.size,
-                        url: r.download_url
-                    }))
-                };
-            } catch (err) {
-                console.log(`[Vidssave] Attempt failed (${attempt.domain}/${attempt.origin}): ${err.message}`);
-                lastError = err;
-                const waitMs = 1000 * (i + 1);
-                await new Promise(r => setTimeout(r, waitMs));
-            }
-        }
-    }
-
-    throw lastError || new Error('Gagal mengambil data dari Vidssave (All mirrors failed)');
+    // Normalize format types to lowercase for consistency
+    return {
+        ...result,
+        formats: result.formats.map(f => ({
+            ...f,
+            type: typeof f.type === 'string' ? f.type.toLowerCase() : f.type,
+            format: typeof f.format === 'string' ? f.format.toLowerCase() : f.format
+        }))
+    };
 }
 
 async function saveHistory(req, url, title, platform, filename) {
@@ -145,10 +85,12 @@ async function getYouTubePreviewMetadata(url) {
     const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
 
     try {
-        const { data } = await axios.get(oembedUrl, {
+        const { url: finalUrl, config } = createRequestConfig(oembedUrl, {
             timeout: 3000,
             headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MediaDownloader/1.0)' }
         });
+
+        const { data } = await axios.get(finalUrl, config);
 
         const thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
 
@@ -478,7 +420,8 @@ async function getInstagramMetadata(url) {
                 const oembedUrl = `https://graph.instagram.com/oembed?url=https://www.instagram.com/p/${postId}/`;
                 const { data } = await axios.get(oembedUrl, {
                     timeout: 3000,
-                    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }
+                    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+                    proxy: getProxyConfig()
                 });
 
                 return {
