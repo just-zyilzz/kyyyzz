@@ -546,13 +546,9 @@ export async function handleUrlDownload(url) {
 export async function downloadFile(url, filename, proxyUrl = null) {
   try {
     // Try direct download first (works for same-origin or CORS-enabled URLs)
-<<<<<<< HEAD
     // For TikTok CDN, we need to try fetching as blob to force download
     // Adding mode: 'cors' might help if server supports it
     const response = await fetch(url, { mode: 'cors' }); 
-=======
-    const response = await fetch(url);
->>>>>>> 6d4d8c707596d83956381878fbdf0573162ea8e5
     if (!response.ok) throw new Error('Direct fetch failed');
     const blob = await response.blob();
 
@@ -592,7 +588,6 @@ export async function downloadFile(url, filename, proxyUrl = null) {
       }
     }
 
-<<<<<<< HEAD
     // Fallback: Use a hidden iframe or new window to trigger download if possible
     // For music files, opening in new tab might just play it.
     // We try to use 'download' attribute on anchor with direct link as last resort.
@@ -608,12 +603,6 @@ export async function downloadFile(url, filename, proxyUrl = null) {
     document.body.removeChild(a);
     
     return false; // Indicate that we fell back to browser default behavior
-=======
-    // Fallback: open in new tab (for CORS-blocked URLs)
-    console.log('Opening in new tab as fallback');
-    window.open(url, '_blank');
-    return false;
->>>>>>> 6d4d8c707596d83956381878fbdf0573162ea8e5
   }
 }
 
@@ -715,7 +704,6 @@ export async function download(url, format, platform) {
         let primaryUrl = downloadUrl;
         let proxyUrl = null;
 
-<<<<<<< HEAD
         if (platform === 'TikTok') {
           // TikTok audio/video: try direct download first with proper headers in downloadFile
           // If direct fails, we can't really proxy effectively due to CDN protections, 
@@ -723,9 +711,6 @@ export async function download(url, format, platform) {
           // For TikTok music (CDN), direct blob fetch is better to avoid opening tab.
           proxyUrl = null; // We removed the proxy in backend, so don't use it here.
         } else if (platform === 'Douyin') {
-=======
-        if (platform === 'TikTok' || platform === 'Douyin') {
->>>>>>> 6d4d8c707596d83956381878fbdf0573162ea8e5
           proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
         } else if (platform === 'Instagram') {
           proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
@@ -733,20 +718,14 @@ export async function download(url, format, platform) {
           proxyUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
         }
 
-<<<<<<< HEAD
         // Try to force download using blob to avoid opening new tab
-=======
->>>>>>> 6d4d8c707596d83956381878fbdf0573162ea8e5
         const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
 
         if (downloaded) {
           popup.textContent = '✅ Download selesai!';
           popup.className = 'popup show popup-success';
         } else {
-<<<<<<< HEAD
           // Fallback if blob download fails (CORS etc)
-=======
->>>>>>> 6d4d8c707596d83956381878fbdf0573162ea8e5
           popup.textContent = '✅ Dibuka di tab baru!';
           popup.className = 'popup show popup-success';
         }

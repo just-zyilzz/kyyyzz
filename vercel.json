@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "astro",
@@ -19,74 +18,4 @@
       ]
     }
   ]
-=======
-    "version": 2,
-    "routes": [
-        {
-            "src": "/api/downloaders/youtube$",
-            "dest": "/api/downloaders/download?platform=youtube"
-        },
-        {
-            "src": "/api/downloaders/youtube-audio$",
-            "dest": "/api/downloaders/download?platform=youtube-audio"
-        },
-        {
-            "src": "/api/downloaders/tiktok$",
-            "dest": "/api/downloaders/download?platform=tiktok"
-        },
-        {
-            "src": "/api/downloaders/instagram$",
-            "dest": "/api/downloaders/download?platform=instagram"
-        },
-        {
-            "src": "/api/downloaders/douyin$",
-            "dest": "/api/downloaders/download?platform=douyin"
-        },
-        {
-            "src": "/api/downloaders/twitter$",
-            "dest": "/api/downloaders/download?platform=twitter"
-        },
-        {
-            "src": "/api/downloaders/spotify$",
-            "dest": "/api/downloaders/download?platform=spotify"
-        },
-        {
-            "src": "/api/downloaders/pinterest$",
-            "dest": "/api/downloaders/download?platform=pinterest"
-        },
-        {
-            "src": "/api/(.*)",
-            "dest": "/api/$1"
-        },
-        {
-            "src": "/(.*\\.css|.*\\.js|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg|.*\\.ico)",
-            "dest": "/public/$1",
-            "headers": {
-                "Cache-Control": "public, max-age=0, must-revalidate"
-            }
-        },
-        {
-            "src": "/",
-            "dest": "/public/index.html",
-            "headers": {
-                "Cache-Control": "no-cache, no-store, must-revalidate"
-            }
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/public/index.html",
-            "headers": {
-                "Cache-Control": "no-cache, no-store, must-revalidate"
-            }
-        }
-    ],
-    "functions": {
-        "api/**/*.js": {
-            "maxDuration": 60
-        }
-    },
-    "env": {
-        "NODE_ENV": "production"
-    }
->>>>>>> 6d4d8c707596d83956381878fbdf0573162ea8e5
 }
