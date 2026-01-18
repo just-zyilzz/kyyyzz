@@ -1,0 +1,10 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/history/page": "app/history/page.js",
+  "/page": "app/page.js",
+  "/api/pinterest-proxy/route": "app/api/pinterest-proxy/route.js",
+  "/api/auth/route": "app/api/auth/route.js",
+  "/api/user/route": "app/api/user/route.js",
+  "/api/downloaders/download/route": "app/api/downloaders/download/route.js",
+  "/api/utils/utility/route": "app/api/utils/utility/route.js"
+}

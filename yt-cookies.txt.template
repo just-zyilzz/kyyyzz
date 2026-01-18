@@ -1,0 +1,33 @@
+# YouTube Cookies Template
+
+# HOW TO GET YOUR YOUTUBE COOKIES:
+# 
+# Method 1: Using Browser Extension (RECOMMENDED)
+# 1. Install "Get cookies.txt LOCALLY" extension
+#    - Chrome: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
+#    - Firefox: https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/
+# 2. Login to YouTube (youtube.com)
+# 3. Click the extension icon
+# 4. Click "Export" or "Copy to clipboard"
+# 5. Save the content to this file (yt-cookies.txt)
+#
+# Method 2: Manual Export from DevTools
+# 1. Open YouTube and login
+# 2. Press F12 to open DevTools
+# 3. Go to Application/Storage -> Cookies -> https://www.youtube.com
+# 4. Copy cookies in Netscape format
+#
+# IMPORTANT:
+# - Keep this file PRIVATE! Contains your login session
+# - Add to .gitignore to prevent accidental commit
+# - Cookies expire after ~6 months, re-export when needed
+#
+# COOKIE FORMAT (Netscape):
+# domain	flag	path	secure	expiration	name	value
+#
+# Example cookies will look like:
+# .youtube.com	TRUE	/	TRUE	1234567890	CONSENT	YES+cb
+# .youtube.com	TRUE	/	TRUE	1234567890	VISITOR_INFO1_LIVE	abcdef123456
+
+# Paste your exported cookies below this line:
+# (Delete these comment lines and paste actual cookies from extension)
