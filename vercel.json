@@ -3,12 +3,6 @@
   "outputDirectory": "dist",
   "framework": "astro",
   "regions": ["sin1"],
-  "functions": {
-    "src/pages/api/**/*.js": {
-      "maxDuration": 30,
-      "memory": 1024
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
