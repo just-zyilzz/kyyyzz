@@ -21,31 +21,88 @@ function extractYouTubeId(url) {
     return null;
 }
 
-async function handleSearch(query, limit, type) {
-    const results = await ytSearch(query);
-    let filteredResults;
 
-    if (type === 'video') {
-        filteredResults = (results.videos || []).slice(0, limit).map(video => ({
-            type: 'video',
-            videoId: video.videoId,
-            url: video.url,
-            title: video.title,
-            description: video.description,
-            thumbnail: video.thumbnail,
-            duration: { seconds: video.seconds, timestamp: video.timestamp },
-            views: video.views,
-            author: { name: video.author.name, url: video.author.url },
-            ago: video.ago,
-            uploadDate: video.uploadDate
-        }));
-    } else {
-        // Fallback or other types (simplified for brevity based on legacy code)
-        filteredResults = (results.videos || []).slice(0, limit);
+async function searchInvidious(query, limit = 10) {
+    const instances = [
+        'https://inv.tux.pizza',
+        'https://vid.puffyan.us',
+        'https://yewtu.be',
+        'https://invidious.drgns.space'
+    ];
+
+    for (const instance of instances) {
+        try {
+            const { data } = await axios.get(`${instance}/api/v1/search`, {
+                params: { q: query, type: 'video' },
+                timeout: 5000
+            });
+
+            if (!Array.isArray(data)) continue;
+
+            return data.slice(0, limit).map(video => ({
+                type: 'video',
+                videoId: video.videoId,
+                url: `https://www.youtube.com/watch?v=${video.videoId}`,
+                title: video.title,
+                description: video.description || '',
+                thumbnail: video.videoThumbnails?.find(t => t.quality === 'maxresdefault')?.url || 
+                          video.videoThumbnails?.[0]?.url || 
+                          `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`,
+                duration: { 
+                    seconds: video.lengthSeconds, 
+                    timestamp: new Date(video.lengthSeconds * 1000).toISOString().substr(11, 8).replace(/^00:/, '') 
+                },
+                views: video.viewCount,
+                author: { name: video.author, url: `${instance}/channel/${video.authorId}` },
+                ago: video.publishedText || '',
+                uploadDate: new Date(video.published * 1000).toISOString()
+            }));
+        } catch (e) {
+            console.warn(`Invidious instance ${instance} failed:`, e.message);
+            continue;
+        }
     }
-
-    return { success: true, query, type, results: filteredResults };
+    throw new Error('All Invidious instances failed');
 }
+
+async function handleSearch(query, limit, type) {
+    // Try Invidious first as it's more reliable on Vercel (no IP scraping block)
+    try {
+        const results = await searchInvidious(query, limit);
+        return { success: true, query, type, results };
+    } catch (invidiousError) {
+        console.warn('Invidious search failed, falling back to yt-search:', invidiousError.message);
+        
+        // Fallback to yt-search
+        try {
+            const results = await ytSearch(query);
+            let filteredResults;
+    
+            if (type === 'video') {
+                filteredResults = (results.videos || []).slice(0, limit).map(video => ({
+                    type: 'video',
+                    videoId: video.videoId,
+                    url: video.url,
+                    title: video.title,
+                    description: video.description,
+                    thumbnail: video.thumbnail,
+                    duration: { seconds: video.seconds, timestamp: video.timestamp },
+                    views: video.views,
+                    author: { name: video.author.name, url: video.author.url },
+                    ago: video.ago,
+                    uploadDate: video.uploadDate
+                }));
+            } else {
+                filteredResults = (results.videos || []).slice(0, limit);
+            }
+        
+            return { success: true, query, type, results: filteredResults };
+        } catch (ytSearchError) {
+             throw new Error('Search failed on all providers');
+        }
+    }
+}
+
 
 async function handleThumbnail(url) {
     const videoId = extractYouTubeId(url);
