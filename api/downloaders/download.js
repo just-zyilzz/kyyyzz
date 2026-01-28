@@ -29,6 +29,43 @@ const { savePin } = require('../../lib/pinterest');
 const ytSearch = require('yt-search');
 const axios = require('axios');
 
+// Cloudflare Turnstile verification function
+async function verifyTurnstileToken(token) {
+    if (!token) {
+        return { success: false, error: 'Token verifikasi tidak ditemukan' };
+    }
+
+    try {
+        const secretKey = process.env.CLOUDFLARE_SECRET_KEY || '0x4AAAAAACUe88utFHhy4fX1asTX1kzUjTM';
+        const response = await axios.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            secret: secretKey,
+            response: token
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = response.data;
+        
+        if (data.success) {
+            return { success: true };
+        } else {
+            return { 
+                success: false, 
+                error: 'Verifikasi gagal. Silakan coba lagi.',
+                errorCodes: data['error-codes']
+            };
+        }
+    } catch (error) {
+        console.error('Turnstile verification error:', error.message);
+        return { 
+            success: false, 
+            error: 'Gagal memverifikasi token. Silakan coba lagi.' 
+        };
+    }
+}
+
 async function saveHistory(req, url, title, platform, filename) {
     try {
         const user = getUserFromRequest(req);
@@ -580,13 +617,30 @@ async function handlePinterest(req, res) {
 
 // ======================== MAIN HANDLER ========================
 module.exports = async (req, res) => {
-    // Allow both GET and POST
+    // Allow both POST (for downloads with verification) and GET (for metadata only)
     if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
     // Get platform parameter
     const platform = (req.method === 'POST' ? req.body.platform : req.query.platform) || '';
+
+    // Check if this is a metadata request (GET with metadata=true parameter)
+    const isMetadataRequest = req.method === 'GET' && req.query.metadata === 'true';
+
+    // For actual downloads (not metadata requests), verify Turnstile token
+    if (!isMetadataRequest && req.method === 'POST') {
+        const turnstileToken = req.body.turnstileToken;
+        const verification = await verifyTurnstileToken(turnstileToken);
+        
+        if (!verification.success) {
+            return res.status(403).json({ 
+                success: false, 
+                error: verification.error,
+                requiresVerification: true 
+            });
+        }
+    }
 
     // Route to appropriate handler
     switch (platform.toLowerCase()) {

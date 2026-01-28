@@ -1,4 +1,10 @@
-document.addEventListener('DOMContentLoaded', () => { initTheme(); });
+document.addEventListener('DOMContentLoaded', () => { 
+  initTheme(); 
+  // Load Turnstile configuration
+  loadTurnstileConfig();
+  // Disable download buttons by default
+  disableDownloadButtons();
+});
 
 // Theme handling
 function initTheme() {
@@ -40,6 +46,135 @@ function initTheme() {
         mediaQuery.addListener(handleChange);
       }
     }
+  }
+}
+
+// ===== CLOUDFLARE TURNSTILE VERIFICATION =====
+let turnstileToken = null;
+let isVerificationRequired = true;
+let turnstileSiteKey = '0x4AAAAAACUe892h4bD0c8xx'; // Default fallback
+
+// Load Turnstile site key from API
+async function loadTurnstileConfig() {
+  try {
+    const response = await fetch('/api/turnstile-config');
+    const data = await response.json();
+    if (data.success && data.siteKey) {
+      turnstileSiteKey = data.siteKey;
+      console.log('✅ Turnstile site key loaded');
+    } else {
+      console.warn('⚠️ Failed to load Turnstile config, using default');
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to load Turnstile config:', error.message);
+  }
+}
+
+// Cloudflare Turnstile Callback Functions
+function onTurnstileSuccess(token) {
+  console.log('✅ Turnstile verification successful');
+  turnstileToken = token;
+  showVerificationMessage('✅ Verifikasi berhasil! Anda dapat mengunduh sekarang.', 'success');
+  
+  // Hide verification container after 2 seconds
+  setTimeout(() => {
+    hideVerification();
+    // Enable download buttons
+    enableDownloadButtons();
+    // Execute pending download if exists
+    executePendingDownload();
+  }, 2000);
+}
+
+function onTurnstileExpired() {
+  console.log('⚠️ Turnstile token expired');
+  turnstileToken = null;
+  showVerificationMessage('⚠️ Token kedaluwarsa. Silakan verifikasi ulang.', 'error');
+  disableDownloadButtons();
+}
+
+function onTurnstileError() {
+  console.log('❌ Turnstile verification error');
+  turnstileToken = null;
+  showVerificationMessage('❌ Gagal verifikasi. Silakan coba lagi.', 'error');
+  disableDownloadButtons();
+}
+
+// Verification UI functions
+function showVerification() {
+  const container = document.getElementById('verificationContainer');
+  if (container) {
+    container.style.display = 'flex';
+    // Reset Turnstile widget if it exists
+    if (window.turnstile) {
+      window.turnstile.render('.cf-turnstile', {
+        sitekey: turnstileSiteKey,
+        callback: 'onTurnstileSuccess',
+        expiredCallback: 'onTurnstileExpired',
+        errorCallback: 'onTurnstileError',
+        theme: document.body.classList.contains('dark') ? 'dark' : 'light'
+      });
+    }
+  }
+}
+
+function hideVerification() {
+  const container = document.getElementById('verificationContainer');
+  if (container) {
+    container.style.display = 'none';
+  }
+}
+
+function showVerificationMessage(message, type) {
+  const messageEl = document.getElementById('verificationMessage');
+  if (messageEl) {
+    messageEl.textContent = message;
+    messageEl.className = `verification-message ${type}`;
+    messageEl.style.display = 'block';
+  }
+}
+
+function enableDownloadButtons() {
+  const downloadButtons = document.querySelectorAll('.dl-video, .dl-audio, .dl-image, .dl-all-carousel, .dl-tiktok-photos, .dl-audio-spotify, .dl-carousel-item');
+  downloadButtons.forEach(btn => {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+  });
+}
+
+function disableDownloadButtons() {
+  const downloadButtons = document.querySelectorAll('.dl-video, .dl-audio, .dl-image, .dl-all-carousel, .dl-tiktok-photos, .dl-audio-spotify, .dl-carousel-item');
+  downloadButtons.forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+  });
+}
+
+// Check if verification is required before download
+function checkVerificationAndDownload(downloadFunction, ...args) {
+  if (!turnstileToken && isVerificationRequired) {
+    showVerification();
+    // Store the download function and arguments for later execution
+    window.pendingDownload = { function: downloadFunction, args: args };
+    return false;
+  }
+  
+  // If verification is successful, execute the download
+  if (turnstileToken && window.pendingDownload) {
+    executePendingDownload();
+  }
+  
+  return true;
+}
+
+// Execute pending download after successful verification
+function executePendingDownload() {
+  if (window.pendingDownload) {
+    const { function: downloadFunction, args } = window.pendingDownload;
+    window.pendingDownload = null;
+    downloadFunction(...args);
   }
 }
 
@@ -693,6 +828,10 @@ async function handleUrlDownload(url) {
       if (btn) {
         btn.onclick = (e) => {
           const youtubeUrl = e.target.dataset.url;
+          // Check verification first
+          if (!checkVerificationAndDownload(download, youtubeUrl, 'audio', 'YouTube')) {
+            return;
+          }
           // Use standard download function but treat it as YouTube audio
           download(youtubeUrl, 'audio', 'YouTube');
         };
@@ -703,6 +842,10 @@ async function handleUrlDownload(url) {
         btn.onclick = (e) => {
           const mediaUrl = e.target.dataset.url;
           const index = parseInt(e.target.dataset.index);
+          // Check verification first
+          if (!checkVerificationAndDownload(downloadCarouselItem, mediaUrl, index)) {
+            return;
+          }
           downloadCarouselItem(mediaUrl, index);
         };
       });
@@ -712,6 +855,10 @@ async function handleUrlDownload(url) {
       if (downloadAllBtn) {
         downloadAllBtn.onclick = (e) => {
           const urls = JSON.parse(e.target.dataset.urls);
+          // Check verification first
+          if (!checkVerificationAndDownload(downloadAllCarousel, urls)) {
+            return;
+          }
           downloadAllCarousel(urls);
         };
       }
@@ -720,6 +867,10 @@ async function handleUrlDownload(url) {
       const downloadPhotosBtn = resultDiv.querySelector('.dl-tiktok-photos');
       if (downloadPhotosBtn) {
         downloadPhotosBtn.onclick = async (e) => {
+          // Check verification first
+          if (!checkVerificationAndDownload(downloadTikTokPhotos, e.target.dataset.url)) {
+            return;
+          }
           await downloadTikTokPhotos(e.target.dataset.url);
         };
       }
@@ -730,6 +881,10 @@ async function handleUrlDownload(url) {
           const format = e.target.classList.contains('dl-audio') ? 'audio' :
             e.target.classList.contains('dl-image') ? 'image' : 'video';
           const platform = e.target.dataset.platform;
+          // Check verification first
+          if (!checkVerificationAndDownload(download, e.target.dataset.url, format, platform)) {
+            return;
+          }
           download(e.target.dataset.url, format, platform);
         };
       });
@@ -817,6 +972,11 @@ function showPopup(message, state = 'loading', duration = 3000) {
 async function download(url, format, platform) {
   const popup = document.getElementById('popup');
 
+  // Check verification first
+  if (!checkVerificationAndDownload(download, url, format, platform)) {
+    return;
+  }
+
   // Show loading
   popup.textContent = '⏳ Downloading...';
   popup.className = 'popup show popup-loading';
@@ -850,6 +1010,11 @@ async function download(url, format, platform) {
       throw new Error('Platform tidak didukung');
     }
 
+    // Add Turnstile token to the request
+    if (turnstileToken) {
+      body.turnstileToken = turnstileToken;
+    }
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -857,10 +1022,27 @@ async function download(url, format, platform) {
     });
 
     if (!res.ok) {
+      // Handle verification error
+      if (res.status === 403) {
+        const errorData = await res.json();
+        if (errorData.requiresVerification) {
+          // Reset token and show verification
+          turnstileToken = null;
+          showVerification();
+          throw new Error('Verifikasi diperlukan. Silakan verifikasi bahwa Anda adalah manusia.');
+        }
+      }
       throw new Error('Network response was not ok: ' + res.statusText);
     }
 
     const data = await res.json();
+
+    // Handle verification failure in response
+    if (data.success === false && data.requiresVerification) {
+      turnstileToken = null;
+      showVerification();
+      throw new Error('Verifikasi diperlukan. Silakan verifikasi bahwa Anda adalah manusia.');
+    }
 
     if (data.success) {
       const downloadUrl = data.downloadUrl;
@@ -1186,102 +1368,5 @@ if (window.matchMedia('(display-mode: standalone)').matches) {
 
 console.log('🚀 PWA Install prompt initialized');
 
-// ===== AUTH & HISTORY LOGIC =====
-document.addEventListener('DOMContentLoaded', () => {
-  checkLoginStatus();
 
-  // Logout handler
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      try {
-        await fetch('/api/auth?action=logout');
-        window.location.reload();
-      } catch (e) {
-        console.error('Logout failed:', e);
-      }
-    });
-  }
-
-  // History button handler
-  const historyBtn = document.getElementById('historyBtn');
-  const historyModal = document.getElementById('historyModal');
-  const closeModal = document.querySelector('.close-modal');
-
-  if (historyBtn && historyModal) {
-    historyBtn.addEventListener('click', async () => {
-      historyModal.style.display = 'flex';
-      await loadHistory();
-    });
-
-    closeModal.addEventListener('click', () => {
-      historyModal.style.display = 'none';
-    });
-
-    window.addEventListener('click', (e) => {
-      if (e.target === historyModal) {
-        historyModal.style.display = 'none';
-      }
-    });
-  }
-});
-
-async function checkLoginStatus() {
-  try {
-    const res = await fetch('/api/user?action=me');
-    const data = await res.json();
-
-    const authSection = document.getElementById('authSection');
-    const loginBtn = document.getElementById('loginBtn');
-    const userSection = document.getElementById('userSection');
-    const usernameDisplay = document.getElementById('usernameDisplay');
-
-    if (data.success && data.user) {
-      if (loginBtn) loginBtn.style.display = 'none';
-      if (userSection) {
-        userSection.style.display = 'inline-flex';
-        userSection.classList.remove('hidden');
-      }
-      if (usernameDisplay) usernameDisplay.textContent = `Hi, ${data.user.username}`;
-    } else {
-      if (loginBtn) loginBtn.style.display = 'inline-flex';
-      if (userSection) userSection.style.display = 'none';
-    }
-  } catch (e) {
-    console.error('Check login status failed:', e);
-  }
-}
-
-async function loadHistory() {
-  const list = document.getElementById('historyList');
-  list.innerHTML = '<p>Loading history...</p>';
-
-  try {
-    const res = await fetch('/api/user?action=history');
-    const data = await res.json();
-
-    if (data.success && data.history && data.history.length > 0) {
-      let html = '';
-      data.history.forEach(item => {
-        const date = new Date(item.timestamp).toLocaleString();
-        html += `
-          <div style="border-bottom: 1px solid #eee; padding: 10px 0;">
-            <div style="font-weight: bold; color: #333;">${item.title || 'No Title'}</div>
-            <div style="font-size: 12px; color: #666; margin: 4px 0;">
-              <span style="background: #eee; padding: 2px 6px; border-radius: 4px;">${item.platform}</span>
-              <span>${date}</span>
-            </div>
-            <a href="${item.url}" target="_blank" style="font-size: 12px; color: #667eea; text-decoration: none;">Link Asli</a>
-          </div>
-        `;
-      });
-      list.innerHTML = html;
-    } else {
-      list.innerHTML = '<p>Belum ada history download.</p>';
-    }
-  } catch (e) {
-    list.innerHTML = '<p style="color: red;">Gagal memuat history.</p>';
-    console.error('Load history failed:', e);
-  }
-}
 

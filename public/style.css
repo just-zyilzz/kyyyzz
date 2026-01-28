@@ -1708,3 +1708,122 @@ body.dark .update-banner-content {
   transform: scale(0.98);
   transition: all var(--duration-fast) var(--ease-out);
 }
+
+/* ===== CLOUDFLARE TURNSTILE VERIFICATION STYLES ===== */
+.verification-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn var(--duration-normal) var(--ease-smooth);
+}
+
+.verification-box {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp var(--duration-normal) var(--ease-bounce);
+}
+
+.verification-box h3 {
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.verification-box p {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  font-size: 0.95rem;
+}
+
+.cf-turnstile {
+  margin: 20px auto;
+  display: flex;
+  justify-content: center;
+}
+
+.verification-message {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all var(--duration-fast) var(--ease-smooth);
+}
+
+.verification-message.error {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  border: 1px solid rgba(255, 59, 48, 0.2);
+}
+
+.verification-message.success {
+  background: rgba(52, 199, 89, 0.1);
+  color: #34c759;
+  border: 1px solid rgba(52, 199, 89, 0.2);
+}
+
+.verification-message.loading {
+  background: rgba(10, 132, 255, 0.1);
+  color: #0a84ff;
+  border: 1px solid rgba(10, 132, 255, 0.2);
+}
+
+body.dark .verification-box {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark .verification-message.error {
+  background: rgba(255, 59, 48, 0.15);
+  color: #ff453a;
+}
+
+body.dark .verification-message.success {
+  background: rgba(48, 209, 88, 0.15);
+  color: #30d158;
+}
+
+body.dark .verification-message.loading {
+  background: rgba(10, 132, 255, 0.15);
+  color: #0a84ff;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
