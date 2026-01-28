@@ -12,6 +12,9 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
+  <!-- Content Security Policy for Cloudflare Turnstile -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.cloudflare.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://challenges.cloudflare.com https://*.cloudflare.com; frame-src https://challenges.cloudflare.com;">
+
   <!-- SEO Meta Tags -->
   <title>kfocean - Download YouTube, TikTok, Instagram, Threads, Facebook & Spotify</title>
   <meta name="description"
@@ -162,14 +165,7 @@
       <div class="verification-box">
         <h3>🔒 Verifikasi Keamanan</h3>
         <p>Verifikasi bahwa Anda adalah manusia untuk mengunduh</p>
-        <div class="cf-turnstile" 
-             data-sitekey="0x4AAAAAACUe892h4bD0c8xx" 
-             data-callback="onTurnstileSuccess"
-             data-expired-callback="onTurnstileExpired"
-             data-error-callback="onTurnstileError"
-             data-theme="auto"
-             id="turnstileWidget">
-        </div>
+        <div id="turnstileWidget"></div>
         <div id="verificationMessage" class="verification-message"></div>
       </div>
     </div>

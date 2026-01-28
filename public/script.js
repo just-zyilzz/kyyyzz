@@ -53,6 +53,7 @@ function initTheme() {
 let turnstileToken = null;
 let isVerificationRequired = true;
 let turnstileSiteKey = '0x4AAAAAACUe892h4bD0c8xx'; // Default fallback
+let currentWidgetId = null;
 
 // Load Turnstile site key from API
 async function loadTurnstileConfig() {
@@ -105,15 +106,26 @@ function showVerification() {
   const container = document.getElementById('verificationContainer');
   if (container) {
     container.style.display = 'flex';
-    // Reset Turnstile widget if it exists
+    
+    // Render or Reset Turnstile widget
     if (window.turnstile) {
-      window.turnstile.render('.cf-turnstile', {
-        sitekey: turnstileSiteKey,
-        callback: 'onTurnstileSuccess',
-        expiredCallback: 'onTurnstileExpired',
-        errorCallback: 'onTurnstileError',
-        theme: document.body.classList.contains('dark') ? 'dark' : 'light'
-      });
+      if (currentWidgetId !== null) {
+        window.turnstile.reset(currentWidgetId);
+      } else {
+        try {
+          currentWidgetId = window.turnstile.render('#turnstileWidget', {
+            sitekey: turnstileSiteKey,
+            callback: onTurnstileSuccess,
+            'expired-callback': onTurnstileExpired,
+            'error-callback': onTurnstileError,
+            theme: document.body.classList.contains('dark') ? 'dark' : 'light'
+          });
+        } catch (e) {
+          console.error("Turnstile render error:", e);
+        }
+      }
+    } else {
+      console.warn("Cloudflare Turnstile script not loaded yet.");
     }
   }
 }
