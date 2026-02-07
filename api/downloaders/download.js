@@ -24,8 +24,9 @@ const { getUserFromRequest } = require('../../lib/session');
 const { saveDownload } = require('../../lib/db');
 const { downloadDouyinVideo } = require('../../lib/douyin');
 const { downloadTwitterVideo } = require('../../lib/twitter');
-const { getSpotifyMetadata } = require('../../lib/spotify');
+const { getSpotifyMetadata, downloadSpotify, searchSpotify } = require('../../lib/spotify');
 const { savePin } = require('../../lib/pinterest');
+const { downloadFacebook } = require('../../lib/facebook');
 const ytSearch = require('yt-search');
 const axios = require('axios');
 
@@ -64,12 +65,15 @@ async function handleYouTube(req, res) {
             });
         }
 
+        const fileName = (result.result.id || Date.now()) + '.mp4';
+        await saveHistory(req, url, result.result.title || 'YouTube Video', 'YouTube', fileName);
+
         res.json({
             success: true,
             title: result.result.title || 'YouTube Video',
             thumbnail: result.result.thumbnail || null,
             downloadUrl: result.result.download,
-            fileName: (result.result.id || Date.now()) + '.mp4',
+            fileName: fileName,
             quality: result.result.quality || quality,
             duration: result.result.duration || 0
         });
@@ -103,7 +107,6 @@ async function handleYouTubeAudio(req, res) {
         }
 
         const fileName = (result.result.id || Date.now()) + '.mp3';
-        
         await saveHistory(req, url, result.result.title || 'YouTube Audio', 'YouTube Audio', fileName);
 
         res.json({
@@ -475,31 +478,79 @@ async function handleTwitter(req, res) {
 // ======================== SPOTIFY ========================
 async function handleSpotify(req, res) {
     const url = req.method === 'POST' ? req.body.url : req.query.url;
+    const action = req.method === 'POST' ? req.body.action : req.query.action;
+    const query = req.method === 'POST' ? req.body.query : req.query.query;
 
+    // Handle search action
+    if (action === 'search') {
+        if (!query) {
+            return res.status(400).json({ success: false, error: 'Query tidak boleh kosong' });
+        }
+
+        try {
+            const result = await searchSpotify(query);
+
+            if (!result.status) {
+                return res.status(result.code || 500).json({
+                    success: false,
+                    error: result.error || 'Pencarian gagal'
+                });
+            }
+
+            return res.json({
+                success: true,
+                total: result.total,
+                results: result.results
+            });
+        } catch (error) {
+            console.error('❌ Spotify search error:', error.message);
+            return res.status(500).json({ success: false, error: 'Gagal mencari lagu' });
+        }
+    }
+
+    // Handle download action (existing logic)
     if (!url) {
         return res.status(400).json({ success: false, error: 'URL tidak boleh kosong' });
     }
 
-    try {
-        const metadata = await getSpotifyMetadata(url);
-        const query = `${metadata.artist} - ${metadata.title} audio`;
-        const searchResults = await ytSearch(query);
+    const lowerUrl = url.toLowerCase();
+    if (!lowerUrl.includes('spotify.com')) {
+        return res.status(400).json({ success: false, error: 'URL bukan Spotify' });
+    }
 
-        if (!searchResults || !searchResults.videos || searchResults.videos.length === 0) {
-            return res.status(404).json({ success: false, error: 'Lagu tidak ditemukan di database musik' });
+    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
+
+    if (metadataOnly) {
+        const metadata = await getSpotifyMetadata(url);
+        return res.json(metadata);
+    }
+
+    try {
+        const result = await downloadSpotify(url);
+
+        if (!result.status || !result.result) {
+            return res.status(result.code || 500).json({
+                success: false,
+                error: result.error || 'Download gagal'
+            });
         }
 
-        const video = searchResults.videos[0];
+        const data = result.result;
+        const fileName = `${data.title} - ${data.artist}.${data.extension || 'mp3'}`.replace(/[^\w\s.-]/gi, '_');
+
+        await saveHistory(req, url, data.title, 'Spotify', fileName);
 
         res.json({
             success: true,
-            title: metadata.title,
-            artist: metadata.artist,
-            thumbnail: metadata.thumbnail,
-            youtubeUrl: video.url,
-            duration: video.duration.seconds,
+            title: data.title,
+            artist: data.artist,
+            thumbnail: data.thumbnail,
+            downloadUrl: data.downloadUrl,
+            fileName: fileName,
+            duration: data.duration,
+            quality: data.quality,
             platform: 'Spotify',
-            source: 'YouTube Bridge'
+            type: data.type
         });
     } catch (error) {
         console.error('❌ Spotify error:', error.message);
@@ -577,6 +628,71 @@ async function handlePinterest(req, res) {
     }
 }
 
+// ======================== FACEBOOK ========================
+async function handleFacebook(req, res) {
+    const url = req.method === 'POST' ? req.body.url : req.query.url;
+
+    if (!url) {
+        return res.status(400).json({ success: false, error: 'URL tidak boleh kosong' });
+    }
+
+    const lowerUrl = url.toLowerCase();
+    if (!lowerUrl.includes('facebook.com') && !lowerUrl.includes('fb.watch') && !lowerUrl.includes('fb.com')) {
+        return res.status(400).json({ success: false, error: 'URL bukan Facebook' });
+    }
+
+    const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
+
+    try {
+        const result = await downloadFacebook(url);
+
+        if (!result.status || !result.result) {
+            return res.status(result.code || 500).json({
+                success: false,
+                error: result.error || 'Download gagal'
+            });
+        }
+
+        const data = result.result;
+
+        if (metadataOnly) {
+            return res.json({
+                success: true,
+                title: data.title,
+                thumbnail: data.thumbnail,
+                author: data.author,
+                platform: 'Facebook',
+                mediaType: data.mediaType
+            });
+        }
+
+        const isVideo = data.mediaType === 'video';
+        const extension = isVideo ? '.mp4' : '.jpg';
+        const fileName = `facebook_${Date.now()}${extension}`;
+
+        await saveHistory(req, url, data.title, 'Facebook', fileName);
+
+        // Use proxy for auto-download (CORS bypass with Content-Disposition)
+        const proxyUrl = `/api/utils/utility?action=facebook-proxy&url=${encodeURIComponent(data.downloadUrl)}&type=${data.mediaType}&filename=${encodeURIComponent(fileName)}`;
+
+        res.json({
+            success: true,
+            title: data.title,
+            author: data.author,
+            thumbnail: data.thumbnail,
+            downloadUrl: proxyUrl,
+            directUrl: data.downloadUrl,
+            fileName: fileName,
+            mediaType: data.mediaType,
+            quality: data.quality,
+            duration: data.duration,
+            platform: 'Facebook'
+        });
+    } catch (error) {
+        console.error('❌ Facebook download error:', error.message);
+        res.status(500).json({ success: false, error: 'Download gagal. Pastikan konten bersifat publik dan coba lagi' });
+    }
+}
 
 // ======================== MAIN HANDLER ========================
 module.exports = async (req, res) => {
@@ -606,10 +722,12 @@ module.exports = async (req, res) => {
             return handleSpotify(req, res);
         case 'pinterest':
             return handlePinterest(req, res);
+        case 'facebook':
+            return handleFacebook(req, res);
         default:
             return res.status(400).json({
                 success: false,
-                error: 'Platform tidak valid. Gunakan: youtube, youtube-audio, tiktok, instagram, douyin, twitter, spotify, pinterest'
+                error: 'Platform tidak valid. Gunakan: youtube, youtube-audio, tiktok, instagram, douyin, twitter, spotify, pinterest, facebook'
             });
     }
 };

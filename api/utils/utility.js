@@ -9,6 +9,7 @@
  * - pinterest-search (Pinterest image search)
  * - tiktok-proxy (TikTok media proxy for CORS)
  * - instagram-proxy (Instagram media proxy for CORS)
+ * - youtube-proxy (YouTube media proxy for IP restriction bypass)
  * 
  * Usage: GET/POST /api/utility?action=search&query=...
  */
@@ -247,6 +248,135 @@ async function handleInstagramProxy(req, res) {
     }
 }
 
+// ======================== YOUTUBE PROXY ========================
+async function handleYouTubeProxy(req, res) {
+    const { url, type, filename } = req.query;
+
+    if (!url) {
+        return res.status(400).json({ success: false, error: 'URL parameter required' });
+    }
+
+    try {
+        console.log(`📡 YouTube Proxy [${type || 'video'}]: Downloading...`);
+
+        const response = await axios({
+            method: 'GET',
+            url: url,
+            responseType: 'arraybuffer',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+            timeout: 120000,
+            maxRedirects: 5,
+        });
+
+        // Set appropriate content type
+        let contentType = response.headers['content-type'] || 'application/octet-stream';
+        let ext = 'mp4';
+
+        if (type === 'audio') {
+            contentType = 'audio/mpeg';
+            ext = 'mp3';
+        } else if (type === 'video') {
+            contentType = 'video/mp4';
+            ext = 'mp4';
+        }
+
+        const downloadFilename = filename || `youtube_${Date.now()}.${ext}`;
+
+        // Set headers
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+        res.setHeader('Content-Length', response.data.length);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'no-cache');
+
+        // Send the buffer
+        res.send(Buffer.from(response.data));
+
+    } catch (error) {
+        console.error('❌ YouTube Proxy error:', error.message);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: 'Failed to fetch media: ' + error.message });
+        }
+    }
+}
+
+// ======================== FACEBOOK PROXY ========================
+async function handleFacebookProxy(req, res) {
+    const { url, type, filename } = req.query;
+
+    if (!url) {
+        return res.status(400).json({ success: false, error: 'URL parameter required' });
+    }
+
+    // Security check: only allow facebook or fbcdn domains
+    try {
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname.toLowerCase();
+        // Allow facebook.com, fbcdn.net and all their subdomains
+        const isAllowed = hostname.endsWith('facebook.com') ||
+            hostname.endsWith('fbcdn.net') ||
+            hostname.includes('.fbcdn.net') ||
+            hostname.includes('.facebook.com');
+        if (!isAllowed) {
+            console.log(`❌ Facebook Proxy: Forbidden domain: ${hostname}`);
+            return res.status(403).json({ success: false, error: 'Forbidden domain' });
+        }
+    } catch (e) {
+        return res.status(400).json({ success: false, error: 'Invalid URL' });
+    }
+
+    try {
+        console.log(`📡 Facebook Proxy [${type || 'media'}]: Downloading...`);
+
+        const response = await axios({
+            method: 'GET',
+            url: url,
+            responseType: 'arraybuffer',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+                'Referer': 'https://www.facebook.com/',
+            },
+            timeout: 120000,
+            maxRedirects: 5,
+        });
+
+        // Set appropriate content type
+        let contentType = response.headers['content-type'] || 'application/octet-stream';
+        let ext = 'mp4';
+
+        if (type === 'image') {
+            contentType = contentType.includes('image') ? contentType : 'image/jpeg';
+            ext = 'jpg';
+        } else {
+            contentType = contentType.includes('video') ? contentType : 'video/mp4';
+            ext = 'mp4';
+        }
+
+        const downloadFilename = filename || `facebook_${Date.now()}.${ext}`;
+
+        // Set headers
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+        res.setHeader('Content-Length', response.data.length);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'no-cache');
+
+        // Send the buffer
+        res.send(Buffer.from(response.data));
+
+    } catch (error) {
+        console.error('❌ Facebook Proxy error:', error.message);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: 'Failed to fetch media: ' + error.message });
+        }
+    }
+}
+
 // ======================== PINTEREST SEARCH ========================
 async function handlePinterestSearch(req, res) {
     const query = req.method === 'POST'
@@ -316,10 +446,20 @@ module.exports = async (req, res) => {
                 return res.status(405).json({ success: false, error: 'Proxy endpoints only support GET' });
             }
             return handleInstagramProxy(req, res);
+        case 'youtube-proxy':
+            if (req.method !== 'GET') {
+                return res.status(405).json({ success: false, error: 'Proxy endpoints only support GET' });
+            }
+            return handleYouTubeProxy(req, res);
+        case 'facebook-proxy':
+            if (req.method !== 'GET') {
+                return res.status(405).json({ success: false, error: 'Proxy endpoints only support GET' });
+            }
+            return handleFacebookProxy(req, res);
         default:
             return res.status(400).json({
                 success: false,
-                error: 'Action tidak valid. Gunakan: search, thumbnail, pinterest-search, tiktok-proxy, instagram-proxy'
+                error: 'Action tidak valid. Gunakan: search, thumbnail, pinterest-search, tiktok-proxy, instagram-proxy, youtube-proxy, facebook-proxy'
             });
     }
 };

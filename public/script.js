@@ -53,21 +53,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (toggleBtn) {
     toggleBtn.addEventListener('click', function () {
-      // Toggle between youtube and pinterest
+      // Toggle between youtube → pinterest → spotify → youtube
       if (currentSearchType === 'youtube') {
         currentSearchType = 'pinterest';
-        this.textContent = '/pin';
         this.dataset.type = 'pinterest';
         urlInput.placeholder = 'Search Pinterest images or paste Pinterest pin URL...';
+        showPopup('Mode: Pinterest Search 📌', 'success');
+      } else if (currentSearchType === 'pinterest') {
+        currentSearchType = 'spotify';
+        this.dataset.type = 'spotify';
+        urlInput.placeholder = 'Search Spotify songs by title or artist...';
+        showPopup('Mode: Spotify Search 🎵', 'success');
       } else {
         currentSearchType = 'youtube';
-        this.textContent = '/yt';
         this.dataset.type = 'youtube';
         urlInput.placeholder = 'Paste YouTube, TikTok, Instagram, or Spotify link...';
+        showPopup('Mode: YouTube Search 🎬', 'success');
       }
-
-      // Animation is handled by CSS :active state
-      // No need for inline transform that conflicts with positioning
     });
   }
 });
@@ -86,7 +88,10 @@ function isUrl(text) {
       text.includes('douyin.com') ||
       text.includes('v.douyin.com') ||
       text.includes('pinterest.com') ||
-      text.includes('pin.it');
+      text.includes('pin.it') ||
+      text.includes('facebook.com') ||
+      text.includes('fb.watch') ||
+      text.includes('fb.com');
   }
 }
 
@@ -105,6 +110,7 @@ function detectPlatform(url) {
   if (lowerUrl.includes('instagram.com')) return 'Instagram';
   if (lowerUrl.includes('spotify.com/track')) return 'Spotify';
   if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it')) return 'Pinterest';
+  if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) return 'Facebook';
   return 'Unknown';
 }
 
@@ -145,6 +151,8 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
       // Handle as search - route based on currentSearchType
       if (currentSearchType === 'pinterest') {
         await handlePinterestSearch(input);
+      } else if (currentSearchType === 'spotify') {
+        await handleSpotifySearch(input);
       } else {
         await handleYouTubeSearch(input);
       }
@@ -233,7 +241,7 @@ async function handlePinterestSearch(keywords) {
     const res = await fetch('/api/utils/utility', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'pinterest-search', query: keywords, limit: 4 })
+      body: JSON.stringify({ action: 'pinterest-search', query: keywords, limit: 200 })
     });
 
     if (!res.ok) {
@@ -343,6 +351,190 @@ async function selectPinterestPin(url, title) {
   } finally {
     document.querySelector('.loading').style.display = 'none';
   }
+}
+
+// Handle Spotify search
+async function handleSpotifySearch(keywords) {
+  try {
+    const res = await fetch('/api/downloaders/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform: 'spotify', action: 'search', query: keywords })
+    });
+
+    if (!res.ok) {
+      throw new Error('Gagal mencari lagu: ' + res.statusText);
+    }
+
+    const data = await res.json();
+
+    if (!data.success || !data.results || data.results.length === 0) {
+      throw new Error('Tidak ada hasil ditemukan');
+    }
+
+    // Display Spotify search results
+    const resultDiv = document.querySelector('.result');
+    let html = `
+      <h3 style="margin-bottom: 20px;">🎵 Hasil Spotify: "${keywords}"</h3>
+      <p style="margin-bottom: 16px; color: var(--text-secondary); font-size: 0.9rem;">
+        Ditemukan ${data.total || data.results.length} lagu. Klik untuk melihat detail.
+      </p>
+      <div class="spotify-results" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto;">
+    `;
+
+    data.results.forEach((track) => {
+      const thumbUrl = track.thumbnail || '';
+      console.log('Track:', track.title, 'Thumbnail URL:', thumbUrl); // DEBUG
+      // Use proxy to bypass CORS for Spotify CDN images
+      const proxiedThumbUrl = thumbUrl ? `/api/spotify-proxy?url=${encodeURIComponent(thumbUrl)}` : '';
+      console.log('Proxied URL:', proxiedThumbUrl); // DEBUG
+
+      html += `
+        <div class="spotify-result-item" 
+             data-spotify-url="${track.spotifyUrl || ''}"
+             data-title="${track.title || ''}"
+             data-artist="${track.artist || ''}"
+             data-duration="${track.duration || ''}"
+             data-thumbnail="${thumbUrl}"
+             style="display: flex; align-items: center; gap: 16px; padding: 12px; background: var(--input-bg); border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid var(--input-border); margin-bottom: 8px;">
+          
+          <div style="width: 56px; height: 56px; flex-shrink: 0; position: relative; border-radius: 8px; overflow: hidden; background: #282828; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            ${proxiedThumbUrl ? `
+              <img src="${proxiedThumbUrl}" alt="${track.title}" loading="eager" 
+                   onload="this.classList.add('loaded');"
+                   onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                   style="width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.3s ease;">
+              <div style="width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #1DB954, #191414); font-size: 24px;">🎵</div>
+            ` : `
+              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1DB954, #191414); font-size: 24px;">🎵</div>
+            `}
+          </div>
+
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;">
+              ${track.no}. ${track.title}
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <span style="color: #1DB954; font-size: 0.8rem;">🎤</span> ${track.artist}
+            </div>
+          </div>
+          
+          <div style="font-size: 0.8rem; color: var(--text-secondary); opacity: 0.8; font-variant-numeric: tabular-nums;">
+            ${track.duration}
+          </div>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = 'block';
+
+    // Add loaded class handlers for progressive image loading (fixes opacity: 0 bug)
+    document.querySelectorAll('.spotify-result-item img').forEach(img => {
+      img.addEventListener('load', function () {
+        this.classList.add('loaded');
+      });
+      // For cached images that load immediately
+      if (img.complete && img.naturalWidth > 0) {
+        img.classList.add('loaded');
+      }
+    });
+
+    // Add click handlers
+    document.querySelectorAll('.spotify-result-item').forEach(item => {
+      item.addEventListener('mouseenter', function () {
+        this.style.transform = 'translateX(4px)';
+        this.style.borderColor = '#1DB954';
+      });
+      item.addEventListener('mouseleave', function () {
+        this.style.transform = 'none';
+        this.style.borderColor = 'var(--input-border)';
+      });
+      item.addEventListener('click', function () {
+        const spotifyUrl = this.getAttribute('data-spotify-url');
+        const title = this.getAttribute('data-title');
+        const artist = this.getAttribute('data-artist');
+        const duration = this.getAttribute('data-duration');
+        const thumbnail = this.getAttribute('data-thumbnail');
+        selectSpotifyTrack(spotifyUrl, title, artist, duration, thumbnail);
+      });
+    });
+  } catch (error) {
+    console.error('Spotify search error:', error);
+    throw error;
+  }
+}
+
+// Select Spotify track from search results - show detail card
+function selectSpotifyTrack(spotifyUrl, title, artist, duration, thumbnail) {
+  const resultDiv = document.querySelector('.result');
+  // Use proxied URL to bypass CORS for Spotify CDN images
+  const proxiedThumb = thumbnail ? `/api/spotify-proxy?url=${encodeURIComponent(thumbnail)}` : '';
+
+  resultDiv.innerHTML = `
+    <div class="spotify-detail-card" style="text-align: center; padding: 20px; animation: fadeIn 0.4s ease;">
+      <div style="position: relative; width: 220px; height: 220px; margin: 0 auto 24px;">
+        ${proxiedThumb ? `
+          <img src="${proxiedThumb}" alt="${title}" 
+               onload="this.classList.add('loaded');" 
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+               style="width: 100%; height: 100%; object-fit: cover; border-radius: 20px; box-shadow: 0 12px 32px rgba(0,0,0,0.4); transition: opacity 0.5s ease;">
+          <div style="width: 100%; height: 100%; display: none; align-items: center; justify-content: center; font-size: 80px; background: linear-gradient(135deg, #1DB954, #191414); border-radius: 20px;">🎵</div>
+        ` : `
+          <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 80px; background: linear-gradient(135deg, #1DB954, #191414); border-radius: 20px;">🎵</div>
+        `}
+      </div>
+      
+      <h3 style="margin: 0 0 8px 0; font-size: 1.5rem; color: var(--text-primary);">${title}</h3>
+      <p style="margin: 0 0 4px 0; font-size: 1.1rem; color: var(--text-secondary);"><span style="color: #1DB954;">🎤</span> ${artist}</p>
+      <p style="margin: 0 0 24px 0; font-size: 0.9rem; color: var(--text-secondary); opacity: 0.7;">⏱️ ${duration}</p>
+      
+      <div style="background: var(--input-bg); padding: 16px; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--input-border); text-align: left;">
+        <p style="margin: 0 0 8px 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); font-weight: 600;">Spotify Track URL</p>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #1DB954;">🔗</span>
+          <a href="${spotifyUrl}" target="_blank" style="color: #1DB954; word-break: break-all; text-decoration: none; font-size: 0.9rem; border-bottom: 1px solid transparent; transition: border 0.3s;">
+            ${spotifyUrl}
+          </a>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <button class="dl-spotify-download" data-url="${spotifyUrl}" data-title="${title}" data-artist="${artist}"
+                style="padding: 16px; background: linear-gradient(135deg, #1DB954, #1ed760); color: white; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; font-size: 1.1rem; transition: all 0.3s; box-shadow: 0 4px 15px rgba(29, 185, 84, 0.4);">
+          🎵 Download MP3
+        </button>
+        <button class="dl-spotify-back" 
+                style="padding: 14px; background: transparent; color: var(--text-primary); border: 1px solid var(--input-border); border-radius: 14px; font-weight: 600; cursor: pointer; font-size: 1rem; transition: all 0.3s;">
+          ← Kembali ke Pencarian
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Download button handler
+  resultDiv.querySelector('.dl-spotify-download').addEventListener('click', async function () {
+    const url = this.getAttribute('data-url');
+    showPopup('⏳ Memproses download...', 'loading');
+
+    try {
+      document.getElementById('urlInput').value = url;
+      await handleUrlDownload(url);
+    } catch (e) {
+      showPopup('❌ Error: ' + e.message, 'error');
+    }
+  });
+
+  // Back button handler
+  resultDiv.querySelector('.dl-spotify-back').addEventListener('click', function () {
+    const inputValue = document.getElementById('urlInput').value;
+    if (inputValue && !isUrl(inputValue)) {
+      handleSpotifySearch(inputValue);
+    } else {
+      resultDiv.style.display = 'none';
+    }
+  });
 }
 
 // Fetch with timeout to prevent hanging
@@ -481,13 +673,13 @@ async function handleUrlDownload(url) {
       metadata = { success: true, title: 'Douyin Video', platform: 'Douyin', thumbnail: null };
     }
   } else if (platform === 'Spotify') {
-    // Spotify - resolve to YouTube URL via bridge
+    // Spotify - direct download from API
     try {
       const res = await fetchWithRetry('/api/downloaders/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform: 'spotify', url })
-      }, 1, 6000);
+      }, 1, 15000);
       const data = await res.json();
 
       if (data.success) {
@@ -497,9 +689,10 @@ async function handleUrlDownload(url) {
           author: data.artist,
           thumbnail: data.thumbnail,
           platform: 'Spotify',
-          // IMPORTANT: We use the resolved YouTube URL for the actual download
-          downloadUrl: data.youtubeUrl,
-          fileName: `${data.artist} - ${data.title}.mp3`
+          downloadUrl: data.downloadUrl,
+          fileName: data.fileName || `${data.artist} - ${data.title}.mp3`,
+          duration: data.duration,
+          quality: data.quality
         };
       } else {
         throw new Error(data.error || 'Gagal mengambil data Spotify');
@@ -529,6 +722,37 @@ async function handleUrlDownload(url) {
     } catch (error) {
       console.error('Pinterest metadata error:', error.message);
       metadata = { success: true, title: 'Pinterest Pin', platform: 'Pinterest', thumbnail: null };
+    }
+  } else if (platform === 'Facebook') {
+    // Facebook - get video/photo metadata
+    try {
+      const res = await fetchWithRetry('/api/downloaders/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: 'facebook', url })
+      }, 2, 20000);
+      const data = await res.json();
+
+      if (data.success) {
+        metadata = {
+          success: true,
+          title: data.title || 'Facebook Video',
+          author: data.author,
+          thumbnail: data.thumbnail,
+          platform: 'Facebook',
+          downloadUrl: data.downloadUrl,
+          downloadUrlHD: data.downloadUrlHD,
+          downloadUrlSD: data.downloadUrlSD,
+          fileName: data.fileName,
+          mediaType: data.mediaType,
+          quality: data.quality
+        };
+      } else {
+        throw new Error(data.error || 'Gagal mengambil data Facebook');
+      }
+    } catch (error) {
+      console.error('Facebook metadata error:', error.message);
+      throw new Error('Gagal mengambil data Facebook: ' + error.message);
     }
   }
 
@@ -645,6 +869,43 @@ async function handleUrlDownload(url) {
       `;
 
       resultDiv.innerHTML = photoSlidesHtml;
+    } else if (platform === 'Facebook') {
+      // Special display for Facebook with HD/SD quality buttons
+      const hasHD = metadata.downloadUrlHD;
+      const hasSD = metadata.downloadUrlSD;
+
+      resultDiv.innerHTML = `
+        ${metadata.thumbnail ? `<img src="${metadata.thumbnail}" alt="Thumbnail" loading="lazy" style="max-height:400px; width:100%; object-fit:cover; border-radius:16px; margin-bottom:20px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);">` : `
+          <div style="width:100%; height:200px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #1877F2, #166FE5); border-radius:16px; margin-bottom:20px; font-size:64px;">📘</div>
+        `}
+        <div class="meta" style="background: linear-gradient(135deg, rgba(24, 119, 242, 0.1) 0%, rgba(22, 111, 229, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+          <p style="margin: 8px 0;"><strong>Platform:</strong> <span style="color: #1877F2;">Facebook</span></p>
+          ${metadata.title ? `<p style="margin: 8px 0;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+          ${metadata.author ? `<p style="margin: 8px 0;"><strong>Author:</strong> <span style="color: #1877F2;">@${metadata.author}</span></p>` : ''}
+          ${metadata.mediaType ? `<p style="margin: 8px 0;"><strong>Type:</strong> ${metadata.mediaType === 'video' ? '🎬 Video' : '🖼️ Photo'}</p>` : ''}
+          ${metadata.quality ? `<p style="margin: 8px 0;"><strong>Quality:</strong> <span style="color: #1877F2;">${metadata.quality}</span></p>` : ''}
+        </div>
+        <div class="download-btns" style="display: flex; flex-direction: column; gap: 10px;">
+          ${hasHD ? `
+            <button class="dl-facebook-hd" data-url="${metadata.downloadUrlHD}" data-filename="${metadata.fileName?.replace('.mp4', '_HD.mp4') || 'facebook_hd.mp4'}" 
+                    style="background: linear-gradient(135deg, #1877F2, #166FE5); color: white; padding: 14px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer;">
+              📥 Download HD Quality
+            </button>
+          ` : ''}
+          ${hasSD ? `
+            <button class="dl-facebook-sd" data-url="${metadata.downloadUrlSD}" data-filename="${metadata.fileName?.replace('.mp4', '_SD.mp4') || 'facebook_sd.mp4'}" 
+                    style="background: var(--input-bg); color: var(--text-primary); padding: 14px; border-radius: 12px; font-weight: 500; border: 1px solid var(--input-border); cursor: pointer;">
+              📥 Download SD Quality
+            </button>
+          ` : ''}
+          ${!hasHD && !hasSD && metadata.downloadUrl ? `
+            <button class="dl-facebook" data-url="${metadata.downloadUrl}" data-filename="${metadata.fileName || 'facebook_media.mp4'}" 
+                    style="background: linear-gradient(135deg, #1877F2, #166FE5); color: white; padding: 14px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer;">
+              📥 Download ${metadata.mediaType === 'video' ? 'Video' : 'Photo'}
+            </button>
+          ` : ''}
+        </div>
+      `;
     } else {
       // Standard display for other platforms
       const thumbSrc = (() => {
@@ -688,13 +949,25 @@ async function handleUrlDownload(url) {
 
     // Attach download handlers
     if (platform === 'Spotify') {
-      // Handler for Spotify button
+      // Handler for Spotify button - direct download
       const btn = resultDiv.querySelector('.dl-audio-spotify');
       if (btn) {
-        btn.onclick = (e) => {
-          const youtubeUrl = e.target.dataset.url;
-          // Use standard download function but treat it as YouTube audio
-          download(youtubeUrl, 'audio', 'YouTube');
+        btn.onclick = async (e) => {
+          const downloadUrl = e.target.dataset.url;
+          const fileName = e.target.dataset.filename || 'spotify-track.mp3';
+
+          showPopup('⏳ Downloading...', 'loading');
+
+          try {
+            // Direct download from Spotify API
+            await downloadFile(downloadUrl, fileName);
+            showPopup('✅ Download started!', 'success');
+          } catch (error) {
+            console.error('Spotify download error:', error);
+            // Fallback: open in new tab
+            window.open(downloadUrl, '_blank');
+            showPopup('📥 Opening download...', 'success');
+          }
         };
       }
     } else if (platform === 'Instagram' && metadata.isCarousel) {
@@ -723,6 +996,32 @@ async function handleUrlDownload(url) {
           await downloadTikTokPhotos(e.target.dataset.url);
         };
       }
+    } else if (platform === 'Facebook') {
+      // Handler for Facebook download buttons
+      const setupFacebookButton = (selector, fallbackName) => {
+        const btn = resultDiv.querySelector(selector);
+        if (btn) {
+          btn.onclick = async (e) => {
+            const downloadUrl = e.target.dataset.url;
+            const fileName = e.target.dataset.filename || fallbackName;
+
+            showPopup('⏳ Downloading...', 'loading');
+
+            try {
+              await downloadFile(downloadUrl, fileName);
+              showPopup('✅ Download started!', 'success');
+            } catch (error) {
+              console.error('Facebook download error:', error);
+              window.open(downloadUrl, '_blank');
+              showPopup('📥 Opening download...', 'success');
+            }
+          };
+        }
+      };
+
+      setupFacebookButton('.dl-facebook-hd', 'facebook_hd.mp4');
+      setupFacebookButton('.dl-facebook-sd', 'facebook_sd.mp4');
+      setupFacebookButton('.dl-facebook', 'facebook_media.mp4');
     } else {
       // Standard handlers
       document.querySelectorAll('.dl-video, .dl-audio, .dl-image').forEach(btn => {
@@ -846,6 +1145,9 @@ async function download(url, format, platform) {
     } else if (platform === 'Pinterest') {
       endpoint = '/api/downloaders/download';
       body.platform = 'pinterest';
+    } else if (platform === 'Facebook') {
+      endpoint = '/api/downloaders/download';
+      body.platform = 'facebook';
     } else {
       throw new Error('Platform tidak didukung');
     }
@@ -898,6 +1200,9 @@ async function download(url, format, platform) {
           proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
         } else if (platform === 'Pinterest') {
           primaryUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
+        } else if (platform === 'Facebook') {
+          // Facebook downloadUrl is already proxied from API for auto-download
+          primaryUrl = downloadUrl;
         }
 
         const downloaded = await downloadFile(primaryUrl, fileName, proxyUrl);
