@@ -930,6 +930,31 @@ async function handleUrlDownload(url) {
           ` : ''}
         </div>
       `;
+    } else if (platform === 'Instagram') {
+      // Instagram single video/reel display with smaller thumbnail
+      const thumbSrc = metadata.metadata?.thumbnail || metadata.thumbnail || '';
+      resultDiv.innerHTML = `
+          ${thumbSrc ? `
+            <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+              <img src="${thumbSrc}" alt="Thumbnail" loading="lazy" 
+                   style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 16px; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);">
+            </div>
+          ` : `
+            <div style="width:100%; height:200px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, rgba(129, 212, 250, 0.4) 0%, rgba(100, 181, 246, 0.4) 100%); border-radius:16px; margin-bottom:20px; font-size:64px;">📷</div>
+          `}
+          <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+            <p style="margin: 8px 0;"><strong>Platform:</strong> <span style="color: #42a5f5;">Instagram</span></p>
+            ${metadata.title ? `<p style="margin: 8px 0;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+            ${metadata.metadata?.username ? `<p style="margin: 8px 0;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.metadata.username}</span></p>` : ''}
+            ${metadata.metadata?.views ? `<p style="margin: 8px 0;"><strong>Views:</strong> ${metadata.metadata.views.toLocaleString()}</p>` : ''}
+            ${metadata.metadata?.likes ? `<p style="margin: 8px 0;"><strong>Likes:</strong> ❤️ ${metadata.metadata.likes.toLocaleString()}</p>` : ''}
+            ${metadata.metadata?.comments ? `<p style="margin: 8px 0;"><strong>Comments:</strong> 💬 ${metadata.metadata.comments.toLocaleString()}</p>` : ''}
+            ${metadata.metadata?.duration ? `<p style="margin: 8px 0;"><strong>Duration:</strong> ${metadata.metadata.duration} detik</p>` : ''}
+          </div>
+          <div class="download-btns">
+            <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
+          </div>
+        `;
     } else {
       // Standard display for other platforms
       const thumbSrc = (() => {
