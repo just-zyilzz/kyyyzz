@@ -1,7 +1,9 @@
 /**
  * YouTube Proxy Download API
- * Fetches video/audio from googlevideo.com CDN and streams to user
+ * Fetches video/audio from googlevideo.com CDN and sends to user
  * with proper headers to force auto-download
+ * 
+ * Note: Uses buffer approach for Vercel compatibility
  */
 
 const axios = require('axios');
@@ -78,57 +80,39 @@ module.exports = async (req, res) => {
     const baseTitle = title || 'download';
     const filename = sanitizeFilename(baseTitle) + '.' + extension;
 
-    console.log(`[YouTube Proxy] Downloading: ${filename}`);
+    console.log(`[YouTube Proxy] Fetching: ${filename}`);
 
     try {
-        // Fetch from CDN with axios stream
+        // Fetch from CDN - download to buffer
         const response = await axios({
             method: 'GET',
             url: url,
-            responseType: 'stream',
+            responseType: 'arraybuffer', // Changed from 'stream' to 'arraybuffer'
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://www.youtube.com/',
                 'Accept': '*/*'
             },
             maxRedirects: 5,
-            timeout: 30000
+            timeout: 120000, // 2 minutes for large files
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
         });
+
+        console.log(`[YouTube Proxy] Fetched ${response.data.length} bytes, sending to client...`);
 
         // Set headers for auto-download
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-
-        // Forward content-length if available
-        if (response.headers['content-length']) {
-            res.setHeader('Content-Length', response.headers['content-length']);
-        }
+        res.setHeader('Content-Length', response.data.length);
 
         // CORS headers
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
 
-        console.log(`[YouTube Proxy] Streaming ${response.headers['content-length'] || 'unknown'} bytes...`);
-
-        // Manually handle stream chunks (Vercel doesn't support .pipe())
-        response.data.on('data', (chunk) => {
-            res.write(chunk);
-        });
-
-        response.data.on('end', () => {
-            res.end();
-            console.log(`[YouTube Proxy] Download complete: ${filename}`);
-        });
-
-        response.data.on('error', (error) => {
-            console.error('[YouTube Proxy] Stream error:', error.message);
-            if (!res.headersSent) {
-                res.status(502).json({
-                    success: false,
-                    error: 'Stream error: ' + error.message
-                });
-            }
-        });
+        // Send buffer to client
+        return res.status(200).send(Buffer.from(response.data));
 
     } catch (error) {
         console.error('[YouTube Proxy] Error:', error.message);
