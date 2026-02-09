@@ -178,7 +178,7 @@ async function handleTikTokProxy(req, res) {
         const response = await axios({
             method: 'GET',
             url: url,
-            responseType: 'stream',
+            responseType: 'arraybuffer',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://www.tiktok.com/',
@@ -208,7 +208,7 @@ async function handleTikTokProxy(req, res) {
         res.setHeader('Access-Control-Allow-Methods', 'GET');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-        response.data.pipe(res);
+        res.send(Buffer.from(response.data));
     } catch (error) {
         console.error('❌ TikTok Proxy error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch media: ' + error.message });

@@ -1,4 +1,25 @@
-document.addEventListener('DOMContentLoaded', () => { initTheme(); });
+document.addEventListener('DOMContentLoaded', () => { 
+  initTheme(); 
+  initHamburgerMenu();
+});
+
+// Hamburger Menu Toggle
+function initHamburgerMenu() {
+  const hamburger = document.getElementById('hamburger');
+  const sideMenu = document.getElementById('sideMenu');
+  const menuOverlay = document.getElementById('menuOverlay');
+
+  if (hamburger && sideMenu && menuOverlay) {
+    function toggleMenu() {
+      hamburger.classList.toggle('active');
+      sideMenu.classList.toggle('active');
+      menuOverlay.classList.toggle('active');
+    }
+
+    hamburger.addEventListener('click', toggleMenu);
+    menuOverlay.addEventListener('click', toggleMenu);
+  }
+}
 
 // Theme handling
 function initTheme() {
@@ -1194,8 +1215,19 @@ async function download(url, format, platform) {
         let primaryUrl = downloadUrl;
         let proxyUrl = null;
 
+        // YouTube: Direct open in new tab (CDN has IP/signature restrictions)
+        if (platform === 'YouTube') {
+          window.open(downloadUrl, '_blank');
+          popup.textContent = '✅ Download link opened!';
+          popup.className = 'popup show popup-success';
+          setTimeout(() => popup.classList.remove('show'), 3000);
+          return;
+        }
+
         if (platform === 'TikTok' || platform === 'Douyin') {
-          proxyUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
+          // Use proxy as PRIMARY URL for auto-download (Content-Disposition: attachment)
+          primaryUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(downloadUrl)}&type=${format}`;
+          proxyUrl = null; // No fallback needed, proxy is primary
         } else if (platform === 'Instagram') {
           proxyUrl = `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(downloadUrl)}`;
         } else if (platform === 'Pinterest') {

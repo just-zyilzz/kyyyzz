@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donate - kfocean</title>
+    <meta name="description" content="Support kfocean dengan donasi. Terima kasih atas dukungan Anda!">
+
+    <!-- Cache Control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-primary: #1a1a1a;
+            --text-secondary: rgba(0, 0, 0, 0.75);
+            --blob-color-1: rgba(102, 126, 234, 0.3);
+            --blob-color-2: rgba(118, 75, 162, 0.3);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            min-height: 100vh;
+            background-image: url('./images/snoopy-white.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            position: relative;
+            transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Dark Mode */
+        body.dark {
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #FFFFFF;
+            --text-secondary: rgba(235, 235, 245, 0.8);
+            --blob-color-1: rgba(10, 132, 255, 0.4);
+            --blob-color-2: rgba(94, 92, 230, 0.4);
+            background-image: url('./images/snoopy-dark.jpg');
+        }
+
+        /* Animated Liquid Blobs */
+        body::before,
+        body::after {
+            content: '';
+            position: fixed;
+            width: 50vw;
+            height: 50vw;
+            max-width: 400px;
+            max-height: 400px;
+            border-radius: 50%;
+            filter: blur(40px);
+            opacity: 0.6;
+            z-index: -1;
+            animation: float 12s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+
+        body::before {
+            background: radial-gradient(circle, var(--blob-color-1) 0%, transparent 70%);
+            top: -15%;
+            left: -10%;
+        }
+
+        body::after {
+            background: radial-gradient(circle, var(--blob-color-2) 0%, transparent 70%);
+            bottom: -15%;
+            right: -10%;
+            animation-delay: -6s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(30px, 40px) scale(1.1);
+            }
+        }
+
+        /* Disable blobs on mobile for performance */
+        @media (max-width: 768px) {
+
+            body::before,
+            body::after {
+                display: none !important;
+            }
+
+            body {
+                background-attachment: scroll !important;
+            }
+        }
+
+        /* Hamburger Menu */
+        .hamburger {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .hamburger:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+
+        .hamburger span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: #fff;
+            margin: 3px 0;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
+        }
+
+        /* Side Menu */
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100vh;
+            background: rgba(30, 30, 50, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 1000;
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 80px 20px 30px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .side-menu.active {
+            left: 0 !important;
+        }
+
+        .side-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .side-menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .menu-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .menu-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            margin-bottom: 8px;
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transform: translateX(5px);
+        }
+
+        .menu-item.active {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(240, 147, 251, 0.3));
+            color: #fff;
+        }
+
+        .menu-item svg {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            opacity: 0.8;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 100px 20px 40px;
+            text-align: center;
+        }
+
+        /* Page Sections */
+        .page {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            padding: 40px 30px;
+            box-shadow:
+                inset 0 1px 1px rgba(255, 255, 255, 0.2),
+                0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        body.dark .glass-card {
+            box-shadow:
+                inset 0 1px 1px rgba(255, 255, 255, 0.1),
+                0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Glass card inner glow */
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+            opacity: 0.6;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        /* Home Page */
+        .donate-emoji {
+            font-size: 64px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .features-list {
+            text-align: left;
+            margin: 25px 0;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .feature-item:last-child {
+            border-bottom: none;
+        }
+
+        .feature-item span {
+            font-size: 20px;
+            margin-right: 12px;
+        }
+
+        .donate-btn {
+            display: inline-block;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+            margin-top: 20px;
+        }
+
+        .donate-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.5);
+        }
+
+        /* QRIS Page */
+        .qris-container {
+            background: #fff;
+            border-radius: 20px;
+            padding: 25px;
+            display: inline-block;
+            margin-bottom: 25px;
+        }
+
+        .qris-image {
+            width: 250px;
+            height: 250px;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+
+        .qris-placeholder {
+            width: 250px;
+            height: 250px;
+            background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .qris-label {
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .payment-methods {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        .payment-badge {
+            background: rgba(102, 126, 234, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        body.dark .payment-badge {
+            background: rgba(10, 132, 255, 0.2);
+            border-color: rgba(10, 132, 255, 0.4);
+            box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3);
+        }
+
+        /* Back Button */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: rgba(102, 126, 234, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-top: 25px;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+        }
+
+        body.dark .back-btn {
+            background: rgba(10, 132, 255, 0.15);
+            border-color: rgba(10, 132, 255, 0.4);
+            box-shadow: 0 4px 16px rgba(10, 132, 255, 0.3);
+        }
+
+        .back-btn:hover {
+            background: rgba(102, 126, 234, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        body.dark .back-btn:hover {
+            background: rgba(10, 132, 255, 0.25);
+            box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        .footer a {
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .container {
+                padding: 90px 15px 30px;
+            }
+
+            .glass-card {
+                padding: 30px 20px;
+            }
+
+            .page-title {
+                font-size: 26px;
+            }
+
+            .qris-image,
+            .qris-placeholder {
+                width: 200px;
+                height: 200px;
+            }
+
+            .donate-btn {
+                padding: 14px 30px;
+                font-size: 16px;
+            }
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 100;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow:
+                inset 0 1px 1px rgba(255, 255, 255, 0.2),
+                0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow:
+                inset 0 1px 1px rgba(255, 255, 255, 0.3),
+                0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Hamburger Menu -->
+    <div class="hamburger" id="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
+    <!-- Side Menu Overlay -->
+    <div class="side-menu-overlay" id="menuOverlay"></div>
+
+    <!-- Side Menu -->
+    <nav class="side-menu" id="sideMenu">
+        <div class="menu-header">
+            <h2>kfocean</h2>
+        </div>
+        <a class="menu-item" href="/" data-page="main">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            Home
+        </a>
+        <div class="menu-item active" data-page="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                    d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+                </path>
+            </svg>
+            Donate
+        </div>
+        <div class="menu-item" data-page="qris">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            QRIS Code
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+
+        <!-- Home Page -->
+        <div class="page active" id="page-home">
+            <div class="glass-card">
+                <div class="donate-emoji">💖</div>
+                <h1 class="page-title">Support kfocean</h1>
+                <p class="page-subtitle">
+                    Terima kasih telah menggunakan kfocean! Donasi Anda membantu kami untuk terus mengembangkan layanan
+                    ini.
+                </p>
+
+                <div class="features-list">
+                    <div class="feature-item">
+                        <span>🚀</span>
+                        <p>Pengembangan fitur baru</p>
+                    </div>
+                    <div class="feature-item">
+                        <span>🖥️</span>
+                        <p>Biaya server & hosting</p>
+                    </div>
+                    <div class="feature-item">
+                        <span>☕</span>
+                        <p>Kopi untuk developer</p>
+                    </div>
+                    <div class="feature-item">
+                        <span>❤️</span>
+                        <p>Mendukung open source</p>
+                    </div>
+                </div>
+
+                <button class="donate-btn" onclick="showPage('qris')">
+                    💳 Donate via QRIS
+                </button>
+
+                <div class="footer">
+                    <p>Made with ❤️ by <a href="https://instagram.com/zyilzzz" target="_blank">@zyilzzz</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- QRIS Page -->
+        <div class="page" id="page-qris">
+            <div class="glass-card">
+                <h1 class="page-title">Scan QRIS</h1>
+                <p class="page-subtitle">
+                    Scan kode QR di bawah menggunakan aplikasi e-wallet atau mobile banking Anda.
+                </p>
+
+                <div class="qris-container">
+                    <!-- Replace this placeholder with your actual QRIS image -->
+                    <img src="/images/qris/qris.jpg" alt="QRIS Code" class="qris-image"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="qris-placeholder" style="display: none;">
+                        <span>QRIS Image<br>Coming Soon</span>
+                    </div>
+                </div>
+
+                <p class="qris-label">Powered by QRIS Indonesia</p>
+
+                <div class="payment-methods">
+                    <span class="payment-badge">GoPay</span>
+                    <span class="payment-badge">OVO</span>
+                    <span class="payment-badge">DANA</span>
+                    <span class="payment-badge">ShopeePay</span>
+                    <span class="payment-badge">LinkAja</span>
+                </div>
+
+                <button class="back-btn" onclick="showPage('home')">
+                    ← Kembali
+                </button>
+
+                <div class="footer">
+                    <p>Semua donasi sangat berarti 🙏</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Theme Toggle Button -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">🌙</button>
+
+    <script>
+        // Menu Toggle
+        const hamburger = document.getElementById('hamburger');
+        const sideMenu = document.getElementById('sideMenu');
+        const menuOverlay = document.getElementById('menuOverlay');
+
+        function toggleMenu() {
+            hamburger.classList.toggle('active');
+            sideMenu.classList.toggle('active');
+            menuOverlay.classList.toggle('active');
+        }
+
+        hamburger.addEventListener('click', toggleMenu);
+        menuOverlay.addEventListener('click', toggleMenu);
+
+        // Page Navigation
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+
+            // Show selected page
+            const targetPage = document.getElementById('page-' + pageId);
+            if (targetPage) {
+                targetPage.classList.add('active');
+            }
+
+            // Update menu active state
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.page === pageId) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Update URL hash
+            if (pageId === 'qris') {
+                history.pushState(null, '', '/donate#qris');
+            } else {
+                history.pushState(null, '', '/donate');
+            }
+
+            // Close menu after navigation
+            if (sideMenu.classList.contains('active')) {
+                toggleMenu();
+            }
+        }
+
+        // Menu item click handlers
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const page = item.dataset.page;
+                if (page === 'main') {
+                    window.location.href = '/';
+                    return;
+                }
+                if (page) {
+                    showPage(page);
+                }
+            });
+        });
+
+        // Handle URL hash on load
+        window.addEventListener('load', () => {
+            if (window.location.hash === '#qris') {
+                showPage('qris');
+            }
+        });
+
+        // Handle browser back/forward
+        window.addEventListener('popstate', () => {
+            if (window.location.hash === '#qris') {
+                showPage('qris');
+            } else {
+                showPage('home');
+            }
+        });
+
+        // ===== THEME SYNC WITH MAIN PAGE =====
+        const themeToggle = document.getElementById('theme-toggle');
+
+        // Load saved theme from localStorage (syncs with main page)
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark');
+                if (themeToggle) themeToggle.textContent = '☀️';
+            } else {
+                document.body.classList.remove('dark');
+                if (themeToggle) themeToggle.textContent = '🌙';
+            }
+        }
+
+        // Toggle theme
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+            const isDark = document.body.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            if (themeToggle) themeToggle.textContent = isDark ? '☀️' : '🌙';
+        }
+
+        if (themeToggle) {
+            themeToggle.addEventListener('click', toggleTheme);
+        }
+
+        // Load theme on page load
+        loadTheme();
+    </script>
+</body>
+
+</html>

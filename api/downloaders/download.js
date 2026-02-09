@@ -16,7 +16,7 @@
  * Usage: GET/POST /api/download?platform=youtube&url=...
  */
 
-const savetube = require('../../lib/savetube');
+const { downloadVideo, downloadAudio } = require('../../lib/youtube');
 const { tiktokDownloaderVideo } = require('../../lib/tiktok');
 const Instagram = require('../../lib/instagram');
 const { instagramDownload } = require('../../lib/scrapers');
@@ -56,7 +56,7 @@ async function handleYouTube(req, res) {
     }
 
     try {
-        const result = await savetube.download(url, quality);
+        const result = await downloadVideo(url, quality);
 
         if (!result.status || !result.result) {
             return res.status(result.code || 500).json({
@@ -97,7 +97,7 @@ async function handleYouTubeAudio(req, res) {
     }
 
     try {
-        const result = await savetube.download(url, 'mp3');
+        const result = await downloadAudio(url);
 
         if (!result.status || !result.result) {
             return res.status(result.code || 500).json({
@@ -199,7 +199,8 @@ async function handleTikTok(req, res) {
             if (!result.music_info || !result.music_info.url) {
                 return res.status(500).json({ success: false, error: 'Audio tidak tersedia untuk video ini' });
             }
-            downloadUrl = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(result.music_info.url)}&type=audio`;
+            // Use direct URL from Apocalypse API (no proxy needed)
+            downloadUrl = result.music_info.url;
             fileName = `${result.id || Date.now()}_audio.mp3`;
         } else {
             if (!result.data || !Array.isArray(result.data) || result.data.length === 0) {

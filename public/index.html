@@ -77,7 +77,7 @@
   <link rel="preload" href="./images/snoopy-dark.jpg" as="image" media="(prefers-color-scheme: dark)" />
 
   <!-- Stylesheet with cache busting -->
-  <link rel="stylesheet" href="style.css?v=20260209">
+  <link rel="stylesheet" href="style.css?v=20260209-v2">
 
   <!-- Cloudflare Turnstile Script -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -133,6 +133,38 @@
 </head>
 
 <body>
+
+  <!-- Hamburger Menu -->
+  <div class="hamburger" id="hamburger">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+
+  <!-- Side Menu Overlay -->
+  <div class="side-menu-overlay" id="menuOverlay"></div>
+
+  <!-- Side Menu -->
+  <nav class="side-menu" id="sideMenu">
+    <div class="menu-header">
+      <h2>kfocean</h2>
+    </div>
+    <div class="menu-item active" data-page="home">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+      </svg>
+      Home
+    </div>
+    <a class="menu-item" href="/donate" data-page="donate">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path
+          d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+        </path>
+      </svg>
+      Donate
+    </a>
+  </nav>
 
   <div class="container">
     <div class="glass-blob" aria-hidden="true"></div>
@@ -228,7 +260,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20260209" defer></script>
+  <script src="script.js?v=20260209-2" defer></script>
 
   <!-- Service Worker Registration -->
   <script>

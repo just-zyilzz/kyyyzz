@@ -10,6 +10,8 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
+// import api production
+
 // Import API handlers
 const downloadHandler = require('./downloaders/download');
 const utilityHandler = require('./utils/utility');
@@ -113,6 +115,11 @@ function serveStaticFile(res, filePath) {
     // Default to index.html
     if (filePath === '/' || filePath === '') {
         fullPath = path.join(publicDir, 'index.html');
+    }
+
+    // Handle /donate route
+    if (filePath === '/donate' || filePath === '/donate/') {
+        fullPath = path.join(publicDir, 'donate.html');
     }
 
     // Check if file exists
