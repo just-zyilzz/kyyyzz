@@ -17,6 +17,7 @@ const downloadHandler = require('./downloaders/download');
 const utilityHandler = require('./utils/utility');
 const pinterestProxyHandler = require('./pinterest-proxy');
 const spotifyProxyHandler = require('./spotify-proxy');
+const youtubeProxyHandler = require('./youtube-proxy');
 const authHandler = require('./auth');
 const userHandler = require('./user');
 
@@ -179,7 +180,7 @@ async function handleApiRequest(req, res, pathname, body) {
         } else if (pathname.startsWith('/api/spotify-proxy')) {
             await spotifyProxyHandler(vercelReq, vercelRes);
         } else if (pathname.startsWith('/api/youtube-proxy')) {
-            await downloadHandler.proxyYouTube(vercelReq, vercelRes);
+            await youtubeProxyHandler(vercelReq, vercelRes);
         } else if (pathname.startsWith('/api/auth')) {
             await authHandler(vercelReq, vercelRes);
         } else if (pathname.startsWith('/api/user')) {
