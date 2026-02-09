@@ -4,8 +4,7 @@
  * with proper headers to force auto-download
  */
 
-const https = require('https');
-const http = require('http');
+const axios = require('axios');
 
 /**
  * Sanitize filename for Content-Disposition header
@@ -82,105 +81,65 @@ async function handler(req, res) {
     console.log(`[YouTube Proxy] Downloading: ${filename}`);
     console.log(`[YouTube Proxy] URL: ${url.substring(0, 100)}...`);
 
-    return new Promise((resolve, reject) => {
-        // Choose http or https based on URL
-        const protocol = url.startsWith('https') ? https : http;
-
-        // Fetch from CDN and stream to user
-        const proxyRequest = protocol.get(url, {
+    try {
+        // Fetch from CDN with axios
+        const response = await axios({
+            method: 'GET',
+            url: url,
+            responseType: 'stream',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://www.youtube.com/',
                 'Origin': 'https://www.youtube.com',
                 'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Connection': 'keep-alive'
-            }
-        }, (proxyResponse) => {
-            // Check if CDN returned success
-            if (proxyResponse.statusCode !== 200) {
-                console.error(`[YouTube Proxy] CDN returned: ${proxyResponse.statusCode}`);
+                'Accept-Language': 'en-US,en;q=0.9'
+            },
+            maxRedirects: 5, // Follow redirects automatically
+            timeout: 120000 // 2 minutes timeout
+        });
 
-                // If redirect, follow it
-                if (proxyResponse.statusCode === 302 || proxyResponse.statusCode === 301) {
-                    const redirectUrl = proxyResponse.headers.location;
-                    console.log(`[YouTube Proxy] Following redirect to: ${redirectUrl}`);
-                    proxyRequest.destroy();
+        // Set headers for auto-download
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
 
-                    // Recursive call to follow redirect
-                    req.query.url = redirectUrl;
-                    handler(req, res).then(resolve).catch(reject);
-                    return;
-                }
+        // Forward content-length if available
+        if (response.headers['content-length']) {
+            res.setHeader('Content-Length', response.headers['content-length']);
+        }
 
-                res.status(502).json({
-                    success: false,
-                    error: `CDN returned status ${proxyResponse.statusCode}`
-                });
-                resolve();
-                return;
-            }
+        // Allow range requests for video seeking
+        res.setHeader('Accept-Ranges', 'bytes');
 
-            // Set headers for auto-download
-            res.setHeader('Content-Type', contentType);
-            res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        // CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-            // Forward content-length if available
-            if (proxyResponse.headers['content-length']) {
-                res.setHeader('Content-Length', proxyResponse.headers['content-length']);
-            }
+        console.log(`[YouTube Proxy] Streaming ${response.headers['content-length'] || 'unknown'} bytes...`);
 
-            // Allow range requests for video seeking
-            res.setHeader('Accept-Ranges', 'bytes');
+        // Pipe the response stream directly to client
+        response.data.pipe(res);
 
-            // CORS headers
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        // Handle stream end
+        response.data.on('end', () => {
+            console.log(`[YouTube Proxy] Download complete: ${filename}`);
+        });
 
-            console.log(`[YouTube Proxy] Streaming ${proxyResponse.headers['content-length'] || 'unknown'} bytes...`);
+        // Handle stream error
+        response.data.on('error', (error) => {
+            console.error('[YouTube Proxy] Stream error:', error.message);
+        });
 
-            // Pipe the response stream directly to client
-            proxyResponse.pipe(res);
+    } catch (error) {
+        console.error('[YouTube Proxy] Error:', error.message);
 
-            // Handle stream end
-            proxyResponse.on('end', () => {
-                console.log(`[YouTube Proxy] Download complete: ${filename}`);
-                resolve();
+        if (!res.headersSent) {
+            res.status(502).json({
+                success: false,
+                error: 'Failed to fetch video: ' + error.message
             });
-
-            // Handle stream error
-            proxyResponse.on('error', (error) => {
-                console.error('[YouTube Proxy] Stream error:', error.message);
-                reject(error);
-            });
-        });
-
-        // Handle proxy request errors
-        proxyRequest.on('error', (error) => {
-            console.error('[YouTube Proxy] Request error:', error.message);
-
-            if (!res.headersSent) {
-                res.status(502).json({
-                    success: false,
-                    error: 'Failed to fetch from CDN: ' + error.message
-                });
-            }
-            resolve();
-        });
-
-        // Set timeout (2 minutes for large files)
-        proxyRequest.setTimeout(120000, () => {
-            proxyRequest.destroy();
-            if (!res.headersSent) {
-                res.status(504).json({
-                    success: false,
-                    error: 'Request timeout'
-                });
-            }
-            resolve();
-        });
-    });
+        }
+    }
 }
 
 module.exports = handler;
