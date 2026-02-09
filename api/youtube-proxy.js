@@ -23,7 +23,7 @@ function sanitizeFilename(filename) {
  * - title: video title for filename (optional)
  * - type: 'video' or 'audio' (default: video)
  */
-async function handler(req, res) {
+module.exports = async (req, res) => {
     // Only allow GET requests
     if (req.method !== 'GET') {
         return res.status(405).json({
@@ -79,10 +79,9 @@ async function handler(req, res) {
     const filename = sanitizeFilename(baseTitle) + '.' + extension;
 
     console.log(`[YouTube Proxy] Downloading: ${filename}`);
-    console.log(`[YouTube Proxy] URL: ${url.substring(0, 100)}...`);
 
     try {
-        // Fetch from CDN with axios
+        // Fetch from CDN with axios stream
         const response = await axios({
             method: 'GET',
             url: url,
@@ -90,56 +89,55 @@ async function handler(req, res) {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://www.youtube.com/',
-                'Origin': 'https://www.youtube.com',
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.9'
+                'Accept': '*/*'
             },
-            maxRedirects: 5, // Follow redirects automatically
-            timeout: 120000 // 2 minutes timeout
+            maxRedirects: 5,
+            timeout: 30000
         });
 
         // Set headers for auto-download
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
         // Forward content-length if available
         if (response.headers['content-length']) {
             res.setHeader('Content-Length', response.headers['content-length']);
         }
 
-        // Allow range requests for video seeking
-        res.setHeader('Accept-Ranges', 'bytes');
-
         // CORS headers
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
         console.log(`[YouTube Proxy] Streaming ${response.headers['content-length'] || 'unknown'} bytes...`);
 
-        // Pipe the response stream directly to client
-        response.data.pipe(res);
+        // Manually handle stream chunks (Vercel doesn't support .pipe())
+        response.data.on('data', (chunk) => {
+            res.write(chunk);
+        });
 
-        // Handle stream end
         response.data.on('end', () => {
+            res.end();
             console.log(`[YouTube Proxy] Download complete: ${filename}`);
         });
 
-        // Handle stream error
         response.data.on('error', (error) => {
             console.error('[YouTube Proxy] Stream error:', error.message);
+            if (!res.headersSent) {
+                res.status(502).json({
+                    success: false,
+                    error: 'Stream error: ' + error.message
+                });
+            }
         });
 
     } catch (error) {
         console.error('[YouTube Proxy] Error:', error.message);
 
         if (!res.headersSent) {
-            res.status(502).json({
+            return res.status(502).json({
                 success: false,
                 error: 'Failed to fetch video: ' + error.message
             });
         }
     }
-}
-
-module.exports = handler;
+};
