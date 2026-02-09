@@ -949,8 +949,6 @@ async function handleUrlDownload(url) {
     } else if (platform === 'TikTok' || platform === 'Douyin') {
       // TikTok/Douyin single video display with proxied thumbnail
       const thumbSrc = metadata.thumbnail || metadata.thumbnailUrl || '';
-      console.log('[TikTok] Metadata:', metadata); // Debugging
-      console.log('[TikTok] ThumbSrc:', thumbSrc); // Debugging
       const proxiedThumb = thumbSrc ? `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(thumbSrc)}&type=thumbnail` : '';
 
       resultDiv.innerHTML = `
