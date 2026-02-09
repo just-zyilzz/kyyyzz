@@ -810,81 +810,72 @@ async function handleUrlDownload(url) {
       `;
     } else if (platform === 'Instagram' && metadata.isCarousel && metadata.urls) {
       // Special display for Instagram carousel with aesthetic UI
-      let carouselHtml = `
-        <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
-          <p style="margin: 8px 0;"><strong>Platform:</strong> <span style="color: #42a5f5;">Instagram Carousel</span></p>
-          ${metadata.title ? `<p style="margin: 8px 0;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
-          ${metadata.metadata?.username ? `<p style="margin: 8px 0;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.metadata.username}</span></p>` : ''}
-          <p style="margin: 8px 0;"><strong>Items:</strong> <span style="color: #42a5f5; font-weight: 600;">${metadata.carouselCount} foto/video</span></p>
-          ${metadata.metadata?.views ? `<p style="margin: 8px 0;"><strong>Views:</strong> ${metadata.metadata.views.toLocaleString()}</p>` : ''}
-          ${metadata.metadata?.likes ? `<p style="margin: 8px 0;"><strong>Likes:</strong> ❤️ ${metadata.metadata.likes.toLocaleString()}</p>` : ''}
-          ${metadata.metadata?.comments ? `<p style="margin: 8px 0;"><strong>Comments:</strong> 💬 ${metadata.metadata.comments.toLocaleString()}</p>` : ''}
-        </div>
-      `;
-
-      // Display only the FIRST thumbnail as preview
+      // 1. Thumbnail Preview FIRST
       const firstMediaUrl = metadata.urls[0];
       const isVideo = firstMediaUrl.includes('.mp4') || firstMediaUrl.includes('video');
       const thumbnailUrl = isVideo ? '' : `/api/utils/utility?action=instagram-proxy&url=${encodeURIComponent(firstMediaUrl)}&type=preview`;
 
-      console.log(`[Carousel] Showing preview of first item from ${metadata.urls.length} total items`);
-
-      // Single thumbnail preview
-      carouselHtml += `
-        <div style="margin: 16px 0;">
-          <div style="display: flex; justify-content: center; align-items: center; padding: 20px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px;">
-            
-            <div style="position: relative; width: 200px; height: 200px;">
+      let carouselHtml = `
+        <div style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: center; align-items: center; padding: 15px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.08) 0%, rgba(100, 181, 246, 0.08) 100%); border: 1px solid rgba(129, 212, 250, 0.2); border-radius: 12px; max-width: 320px; margin: 0 auto;">
+            <div style="position: relative; width: 180px; height: 180px;">
               <!-- Fallback Icon -->
-              <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.4) 0%, rgba(100, 181, 246, 0.4) 100%); display: flex; align-items: center; justify-content: center; font-size: 64px;">
+              <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px; background: linear-gradient(135deg, rgba(129, 212, 250, 0.4) 0%, rgba(100, 181, 246, 0.4) 100%); display: flex; align-items: center; justify-content: center; font-size: 48px;">
                 ${isVideo ? '🎥' : '📷'}
               </div>
-              
               <!-- Preview Image -->
               ${!isVideo ? `<img src="${thumbnailUrl}" alt="Preview" loading="lazy" 
-                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; z-index: 2; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);" 
+                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; z-index: 2; box-shadow: 0 4px 12px rgba(66, 165, 245, 0.2);" 
                    onerror="this.style.opacity='0';"
                    onload="if(this.naturalWidth === 0) this.style.opacity='0';">` : ''}
             </div>
-            
           </div>
         </div>
-      `;
 
-      // Download All button only
-      carouselHtml += `
+        <!-- 2. Metadata SECOND -->
+        <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+          <p style="margin: 8px 0; font-size: 0.9em;"><strong>Platform:</strong> <span style="color: #42a5f5;">Instagram Carousel</span></p>
+          ${metadata.title ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+          ${metadata.metadata?.username ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.metadata.username}</span></p>` : ''}
+          <p style="margin: 8px 0; font-size: 0.9em;"><strong>Items:</strong> <span style="color: #42a5f5; font-weight: 600;">${metadata.carouselCount} foto/video</span></p>
+          ${metadata.metadata?.views ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Views:</strong> ${metadata.metadata.views.toLocaleString()}</p>` : ''}
+          ${metadata.metadata?.likes ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Likes:</strong> ❤️ ${metadata.metadata.likes.toLocaleString()}</p>` : ''}
+        </div>
+
         <div class="download-btns" style="margin-top: 20px;">
           <button class="dl-all-carousel" data-urls='${JSON.stringify(metadata.urls)}'>
             ⬇️ Download All (${metadata.carouselCount} items)
           </button>
         </div>
       `;
-
       resultDiv.innerHTML = carouselHtml;
     } else if (platform === 'TikTok' && metadata.isPhotoSlides) {
       // Special display for TikTok Photo Slides
-      let photoSlidesHtml = `
-        <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
-          <p style="margin: 8px 0;"><strong>Platform:</strong> <span style="color: #42a5f5;">TikTok Photo Slides 📸</span></p>
-          ${metadata.title ? `<p style="margin: 8px 0;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
-          ${metadata.author ? `<p style="margin: 8px 0;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.author}</span></p>` : ''}
-          <p style="margin: 8px 0;"><strong>Photos:</strong> <span style="color: #42a5f5; font-weight: 600;">${metadata.photoCount} foto</span></p>
-          ${metadata.stats ? `<p style="margin: 8px 0;"><strong>Views:</strong> ${metadata.stats.views} | <strong>Likes:</strong> ${metadata.stats.likes}</p>` : ''}
-        </div>
-      `;
+      // 1. Thumbnail Preview FIRST
+      const proxiedThumb = metadata.thumbnail ? `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(metadata.thumbnail)}&type=thumbnail` : '';
 
-      // Show preview of first photo (USE PROXY FOR CORS!)
-      if (metadata.thumbnail) {
-        const proxiedThumb = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(metadata.thumbnail)}&type=thumbnail`;
+      let photoSlidesHtml = '';
+      if (proxiedThumb) {
         photoSlidesHtml += `
-          <div style="display: flex; justify-content: center; margin: 16px 0;">
+          <div style="display: flex; justify-content: center; margin-bottom: 20px;">
             <img src="${proxiedThumb}" alt="Preview" loading="lazy" 
-                 style="max-height:280px; max-width:100%; object-fit: contain; border-radius:12px; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);">
+                 style="max-height:240px; max-width:100%; object-fit: contain; border-radius:12px; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);">
           </div>
         `;
       }
 
-      // Download button for photos - BLUE LIQUID GLASS STYLE (same as Instagram)
+      // 2. Metadata SECOND
+      photoSlidesHtml += `
+        <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+          <p style="margin: 8px 0; font-size: 0.9em;"><strong>Platform:</strong> <span style="color: #42a5f5;">TikTok Photo Slides 📸</span></p>
+          ${metadata.title ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+          ${metadata.author ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.author}</span></p>` : ''}
+          <p style="margin: 8px 0; font-size: 0.9em;"><strong>Photos:</strong> <span style="color: #42a5f5; font-weight: 600;">${metadata.photoCount} foto</span></p>
+          ${metadata.stats ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Views:</strong> ${metadata.stats.views.toLocaleString()} | <strong>Likes:</strong> ${metadata.stats.likes.toLocaleString()}</p>` : ''}
+        </div>
+      `;
+
+      // Download button for photos
       photoSlidesHtml += `
         <div class="download-btns" style="margin-top: 20px;">
           <button class="dl-tiktok-photos dl-all-carousel" data-url="${url}">
@@ -938,19 +929,18 @@ async function handleUrlDownload(url) {
           ${thumbSrc ? `
             <div style="display: flex; justify-content: center; margin-bottom: 20px;">
               <img src="${thumbSrc}" alt="Thumbnail" loading="lazy" 
-                   style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 16px; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);">
+                   style="max-height: 240px; max-width: 100%; object-fit: contain; border-radius: 16px; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);">
             </div>
           ` : `
-            <div style="width:100%; height:200px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, rgba(129, 212, 250, 0.4) 0%, rgba(100, 181, 246, 0.4) 100%); border-radius:16px; margin-bottom:20px; font-size:64px;">📷</div>
+            <div style="width:100%; height:180px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, rgba(129, 212, 250, 0.4) 0%, rgba(100, 181, 246, 0.4) 100%); border-radius:16px; margin-bottom:20px; font-size:48px;">📷</div>
           `}
           <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
-            <p style="margin: 8px 0;"><strong>Platform:</strong> <span style="color: #42a5f5;">Instagram</span></p>
-            ${metadata.title ? `<p style="margin: 8px 0;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
-            ${metadata.metadata?.username ? `<p style="margin: 8px 0;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.metadata.username}</span></p>` : ''}
-            ${metadata.metadata?.views ? `<p style="margin: 8px 0;"><strong>Views:</strong> ${metadata.metadata.views.toLocaleString()}</p>` : ''}
-            ${metadata.metadata?.likes ? `<p style="margin: 8px 0;"><strong>Likes:</strong> ❤️ ${metadata.metadata.likes.toLocaleString()}</p>` : ''}
-            ${metadata.metadata?.comments ? `<p style="margin: 8px 0;"><strong>Comments:</strong> 💬 ${metadata.metadata.comments.toLocaleString()}</p>` : ''}
-            ${metadata.metadata?.duration ? `<p style="margin: 8px 0;"><strong>Duration:</strong> ${metadata.metadata.duration} detik</p>` : ''}
+            <p style="margin: 8px 0; font-size: 0.9em;"><strong>Platform:</strong> <span style="color: #42a5f5;">Instagram</span></p>
+            ${metadata.title ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+            ${metadata.metadata?.username ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.metadata.username}</span></p>` : ''}
+            ${metadata.metadata?.views ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Views:</strong> ${metadata.metadata.views.toLocaleString()}</p>` : ''}
+            ${metadata.metadata?.likes ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Likes:</strong> ❤️ ${metadata.metadata.likes.toLocaleString()}</p>` : ''}
+            ${metadata.metadata?.duration ? `<p style="margin: 8px 0; font-size: 0.9em;"><strong>Duration:</strong> ${metadata.metadata.duration} detik</p>` : ''}
           </div>
           <div class="download-btns">
             <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
@@ -964,11 +954,11 @@ async function handleUrlDownload(url) {
       resultDiv.innerHTML = `
           ${proxiedThumb ? `
             <div style="display: flex; justify-content: center; margin-bottom: 20px;">
-              <img src="${proxiedThumb}" alt="Thumbnail" loading="lazy" 
-                   style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 16px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
+              <img src="${proxiedThumb}" alt="Thumbnail" loading="lazy"
+                   style="max-height: 240px; max-width: 100%; object-fit: contain; border-radius: 16px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
             </div>
           ` : `
-            <div style="width:100%; height:200px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.2)); border-radius:16px; margin-bottom:20px; font-size:64px;">🎵</div>
+            <div style="width:100%; height:200px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.2)); border-radius:16px; margin-bottom:20px; font-size:48px;">🎵</div>
           `}
           <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
             <p style="margin: 8px 0;"><strong>Platform:</strong> <span style="color: #42a5f5;">${platform}</span></p>
