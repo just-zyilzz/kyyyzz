@@ -875,10 +875,11 @@ async function handleUrlDownload(url) {
 
       // Show preview of first photo (USE PROXY FOR CORS!)
       if (metadata.thumbnail) {
+        const proxiedThumb = `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(metadata.thumbnail)}&type=thumbnail`;
         photoSlidesHtml += `
-          <div style="margin: 16px 0;">
-            <img src="${metadata.thumbnail}" alt="Preview" loading="lazy" 
-                 style="max-height:400px; width:100%; object-fit: cover; border-radius:12px; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);">
+          <div style="display: flex; justify-content: center; margin: 16px 0;">
+            <img src="${proxiedThumb}" alt="Preview" loading="lazy" 
+                 style="max-height:280px; max-width:100%; object-fit: contain; border-radius:12px; box-shadow: 0 4px 16px rgba(66, 165, 245, 0.3);">
           </div>
         `;
       }
@@ -953,6 +954,32 @@ async function handleUrlDownload(url) {
           </div>
           <div class="download-btns">
             <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
+          </div>
+        `;
+    } else if (platform === 'TikTok' || platform === 'Douyin') {
+      // TikTok/Douyin single video display with proxied thumbnail
+      const thumbSrc = metadata.thumbnail || metadata.thumbnailUrl || '';
+      const proxiedThumb = thumbSrc ? `/api/utils/utility?action=tiktok-proxy&url=${encodeURIComponent(thumbSrc)}&type=thumbnail` : '';
+
+      resultDiv.innerHTML = `
+          ${proxiedThumb ? `
+            <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+              <img src="${proxiedThumb}" alt="Thumbnail" loading="lazy" 
+                   style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 16px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
+            </div>
+          ` : `
+            <div style="width:100%; height:200px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.2)); border-radius:16px; margin-bottom:20px; font-size:64px;">🎵</div>
+          `}
+          <div class="meta" style="background: linear-gradient(135deg, rgba(129, 212, 250, 0.1) 0%, rgba(100, 181, 246, 0.1) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+            <p style="margin: 8px 0;"><strong>Platform:</strong> <span style="color: #42a5f5;">${platform}</span></p>
+            ${metadata.title ? `<p style="margin: 8px 0;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
+            ${metadata.author ? `<p style="margin: 8px 0;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.author}</span></p>` : ''}
+            ${metadata.duration ? `<p style="margin: 8px 0;"><strong>Durasi:</strong> ${metadata.duration}s</p>` : ''}
+            ${metadata.stats ? `<p style="margin: 8px 0;"><strong>Views:</strong> ${metadata.stats.views.toLocaleString()} | <strong>Likes:</strong> ❤️ ${metadata.stats.likes.toLocaleString()}</p>` : ''}
+          </div>
+          <div class="download-btns" style="display: flex; flex-direction: column; gap: 10px;">
+             <button class="dl-video" data-url="${url}" data-platform="${platform}">📥 Download Video</button>
+             <button class="dl-audio" data-url="${url}" data-platform="${platform}">🎵 Download Audio</button>
           </div>
         `;
     } else {
