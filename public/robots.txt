@@ -1,8 +1,6 @@
-# robots.txt for Tools Premium
-# https://kfocean.xyz/robots.txt
-
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /private/
 
 Sitemap: https://kfocean.xyz/sitemap.xml
