@@ -696,7 +696,7 @@ async function handleFacebook(req, res) {
 }
 
 // ======================== MAIN HANDLER ========================
-module.exports = async (req, res) => {
+async function mainDownloadHandler(req, res) {
     // Allow both GET and POST
     if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -731,7 +731,7 @@ module.exports = async (req, res) => {
                 error: 'Platform tidak valid. Gunakan: youtube, youtube-audio, tiktok, instagram, douyin, twitter, spotify, pinterest, facebook'
             });
     }
-};
+}
 
 // ======================== YOUTUBE PROXY DOWNLOAD ========================
 async function proxyYouTubeDownload(req, res) {
