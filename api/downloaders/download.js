@@ -732,3 +732,53 @@ module.exports = async (req, res) => {
             });
     }
 };
+
+// ======================== YOUTUBE PROXY DOWNLOAD ========================
+async function proxyYouTubeDownload(req, res) {
+    const url = req.query.url;
+    const title = req.query.title || 'video';
+    const type = req.query.type || 'video'; // 'video' or 'audio'
+
+    if (!url) {
+        return res.status(400).json({
+            success: false,
+            error: 'URL parameter is required'
+        });
+    }
+
+    try {
+        const response = await axios({
+            method: 'GET',
+            url: url,
+            responseType: 'stream',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://www.youtube.com/'
+            }
+        });
+
+        // Set headers for auto-download
+        const extension = type === 'audio' ? 'mp3' : 'mp4';
+        const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').substring(0, 100);
+        const filename = `${sanitizedTitle}.${extension}`;
+
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Type', type === 'audio' ? 'audio/mpeg' : 'video/mp4');
+
+        // Stream the video/audio to response
+        response.data.pipe(res);
+
+    } catch (error) {
+        console.error('YouTube proxy error:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Download failed: ' + error.message
+        });
+    }
+}
+
+module.exports = {
+    handler: mainDownloadHandler,
+    proxyYouTube: proxyYouTubeDownload
+};
+

@@ -171,13 +171,15 @@ async function handleApiRequest(req, res, pathname, body) {
 
     try {
         if (pathname.startsWith('/api/downloaders/download')) {
-            await downloadHandler(vercelReq, vercelRes);
+            await downloadHandler.handler(vercelReq, vercelRes);
         } else if (pathname.startsWith('/api/utils/utility')) {
             await utilityHandler(vercelReq, vercelRes);
         } else if (pathname.startsWith('/api/pinterest-proxy')) {
             await pinterestProxyHandler(vercelReq, vercelRes);
         } else if (pathname.startsWith('/api/spotify-proxy')) {
             await spotifyProxyHandler(vercelReq, vercelRes);
+        } else if (pathname.startsWith('/api/youtube-proxy')) {
+            await downloadHandler.proxyYouTube(vercelReq, vercelRes);
         } else if (pathname.startsWith('/api/auth')) {
             await authHandler(vercelReq, vercelRes);
         } else if (pathname.startsWith('/api/user')) {
