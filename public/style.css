@@ -1784,7 +1784,7 @@ body.dark .hamburger span {
 }
 
 .side-menu.active {
-  left: 0;
+  left: 0 !important;
 }
 
 .side-menu-overlay {
