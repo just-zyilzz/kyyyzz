@@ -1772,15 +1772,24 @@ body.dark .hamburger span {
   left: -280px !important;
   width: 280px;
   height: 100vh;
-  background: rgba(30, 30, 50, 0.95);
+  /* Light mode default: White/Glass */
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   z-index: 1000;
   transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 80px 20px 30px;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
   overflow-y: auto;
   overflow-x: hidden;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
+}
+
+body.dark .side-menu {
+  /* Dark mode: Dark/Glass */
+  background: rgba(30, 30, 50, 0.95);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
 }
 
 .side-menu.active {
@@ -1808,12 +1817,23 @@ body.dark .hamburger span {
 .menu-header {
   margin-bottom: 30px;
   padding-bottom: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.dark .menu-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .menu-header h2 {
   font-size: 24px;
   font-weight: 600;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+body.dark .menu-header h2 {
   background: linear-gradient(135deg, #667eea, #f093fb);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1826,7 +1846,7 @@ body.dark .hamburger span {
   padding: 15px 20px;
   margin-bottom: 8px;
   border-radius: 12px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   text-decoration: none;
   font-size: 16px;
   font-weight: 500;
@@ -1834,13 +1854,27 @@ body.dark .hamburger span {
   cursor: pointer;
 }
 
+body.dark .menu-item {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .menu-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: rgba(102, 126, 234, 0.1);
+  color: var(--text-primary);
   transform: translateX(5px);
 }
 
+body.dark .menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 .menu-item.active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+  color: #667eea;
+}
+
+body.dark .menu-item.active {
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(240, 147, 251, 0.3));
   color: #fff;
 }
