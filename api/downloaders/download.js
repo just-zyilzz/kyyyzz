@@ -284,40 +284,50 @@ async function handleInstagram(req, res) {
     }
 
     const metadataOnly = req.query.metadata === 'true' || req.body.metadata === true;
-    if (metadataOnly) {
-        const metadata = await getInstagramMetadata(url);
-        return res.json(metadata);
-    }
 
     try {
-        let result;
+        const result = await Instagram(url);
 
-        try {
-            result = await Instagram(url);
-        } catch (e1) {
-            result = await instagramDownload(url);
+        // Handle error from new yt-dlp implementation
+        if (!result.status) {
+            return res.status(result.code || 500).json({
+                success: false,
+                error: result.error || 'Download gagal'
+            });
         }
 
-        if (result.msg) {
-            return res.status(500).json({ success: false, error: result.msg });
+        // Return metadata only if requested
+        if (metadataOnly) {
+            return res.json({
+                success: true,
+                title: result.result.metadata.title,
+                caption: result.result.metadata.caption,
+                username: result.result.metadata.username,
+                thumbnail: result.result.metadata.thumbnail,
+                likes: result.result.metadata.like_count,
+                comments: result.result.metadata.comment_count,
+                views: result.result.metadata.view_count,
+                duration: result.result.metadata.duration,
+                isVideo: result.result.metadata.isVideo,
+                platform: 'Instagram'
+            });
         }
 
         const user = getUserFromRequest(req);
 
-        let allUrls = [];
-        if (Array.isArray(result.url)) {
-            allUrls = result.url;
-        } else if (Array.isArray(result.urls)) {
-            allUrls = result.urls;
-        } else if (result.url) {
-            allUrls = [result.url];
-        }
-
+        // Get all media URLs (for carousel/multiple items)
+        const allUrls = result.result.url || [];
         const downloadUrl = allUrls[0];
         const fileName = `instagram_${Date.now()}.mp4`;
         const isCarousel = allUrls.length > 1;
 
-        await saveHistory(req, url, title || result.metadata?.caption || result.metadata?.username || 'Instagram Post', 'Instagram', fileName);
+        await saveHistory(
+            req,
+            url,
+            result.result.metadata.title || result.result.metadata.caption || 'Instagram Post',
+            'Instagram',
+            fileName
+        );
 
         res.json({
             success: true,
@@ -326,8 +336,19 @@ async function handleInstagram(req, res) {
             fileName: fileName,
             isCarousel: isCarousel,
             carouselCount: allUrls.length,
-            metadata: result.metadata,
-            service: result.service || 'instagram'
+            metadata: {
+                title: result.result.metadata.title,
+                caption: result.result.metadata.caption,
+                username: result.result.metadata.username,
+                thumbnail: result.result.metadata.thumbnail,
+                likes: result.result.metadata.like_count,
+                comments: result.result.metadata.comment_count,
+                views: result.result.metadata.view_count,
+                duration: result.result.metadata.duration,
+                isVideo: result.result.metadata.isVideo,
+                timestamp: result.result.metadata.timestamp
+            },
+            service: 'instagram'
         });
     } catch (error) {
         console.error('❌ Instagram download error:', error.message);

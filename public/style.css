@@ -1769,7 +1769,7 @@ body.dark .hamburger span {
 .side-menu {
   position: fixed;
   top: 0;
-  left: -280px;
+  left: -280px !important;
   width: 280px;
   height: 100vh;
   background: rgba(30, 30, 50, 0.95);
@@ -1784,7 +1784,7 @@ body.dark .hamburger span {
 }
 
 .side-menu.active {
-  left: 0 !important;
+  left: 0;
 }
 
 .side-menu-overlay {

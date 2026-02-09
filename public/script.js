@@ -1,5 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => { 
-  initTheme(); 
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initHamburgerMenu();
 });
 
@@ -816,6 +816,9 @@ async function handleUrlDownload(url) {
           ${metadata.title ? `<p style="margin: 8px 0;"><strong>Judul:</strong> ${metadata.title}</p>` : ''}
           ${metadata.metadata?.username ? `<p style="margin: 8px 0;"><strong>Author:</strong> <span style="color: #42a5f5;">@${metadata.metadata.username}</span></p>` : ''}
           <p style="margin: 8px 0;"><strong>Items:</strong> <span style="color: #42a5f5; font-weight: 600;">${metadata.carouselCount} foto/video</span></p>
+          ${metadata.metadata?.views ? `<p style="margin: 8px 0;"><strong>Views:</strong> ${metadata.metadata.views.toLocaleString()}</p>` : ''}
+          ${metadata.metadata?.likes ? `<p style="margin: 8px 0;"><strong>Likes:</strong> ❤️ ${metadata.metadata.likes.toLocaleString()}</p>` : ''}
+          ${metadata.metadata?.comments ? `<p style="margin: 8px 0;"><strong>Comments:</strong> 💬 ${metadata.metadata.comments.toLocaleString()}</p>` : ''}
         </div>
       `;
 
