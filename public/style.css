@@ -1767,6 +1767,7 @@ body.dark .hamburger span {
 
 /* ===== SIDE MENU ===== */
 .side-menu {
+  /* Contrast fix */
   position: fixed;
   top: 0;
   left: -280px !important;
