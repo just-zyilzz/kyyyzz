@@ -70,8 +70,13 @@
   <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
 
   <!-- Preload Critical Assets -->
-  <link rel="preload" href="./images/snoopy-white.webp" as="image" />
-  <link rel="preload" href="./images/snoopy-dark.webp" as="image" media="(prefers-color-scheme: dark)" />
+  <link rel="preload" href="./images/snoopy-white-mobile.webp" as="image" media="(max-width: 768px)"
+    fetchpriority="high" />
+  <link rel="preload" href="./images/snoopy-dark-mobile.webp" as="image"
+    media="(max-width: 768px) and (prefers-color-scheme: dark)" fetchpriority="high" />
+  <link rel="preload" href="./images/snoopy-white.webp" as="image" media="(min-width: 769px)" fetchpriority="high" />
+  <link rel="preload" href="./images/snoopy-dark.webp" as="image"
+    media="(min-width: 769px) and (prefers-color-scheme: dark)" fetchpriority="high" />
 
   <!-- Stylesheet with cache busting -->
   <link rel="stylesheet" href="style.min.css?v=20260209-menu">

@@ -351,8 +351,12 @@ body.dark .search-type-toggle:hover {
 
   /* Simplify background gradients */
   body.dark {
-    background-image: url('./images/snoopy-dark.webp');
+    background-image: url('./images/snoopy-dark-mobile.webp');
     /* Ensure it loads */
+  }
+
+  body {
+    background-image: url('./images/snoopy-white-mobile.webp');
   }
 }
 
