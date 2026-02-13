@@ -27,6 +27,7 @@ const { downloadTwitterVideo } = require('../../lib/twitter');
 const { getSpotifyMetadata, downloadSpotify, searchSpotify } = require('../../lib/spotify');
 const { savePin } = require('../../lib/pinterest');
 const { downloadFacebook } = require('../../lib/facebook');
+const { downloadGeneric } = require('../../lib/generic');
 const ytSearch = require('yt-search');
 const axios = require('axios');
 
@@ -716,6 +717,40 @@ async function handleFacebook(req, res) {
     }
 }
 
+// ======================== GENERIC ========================
+async function handleGeneric(req, res) {
+    const url = req.method === 'POST' ? req.body.url : req.query.url;
+
+    if (!url) {
+        return res.status(400).json({ success: false, error: 'URL tidak boleh kosong' });
+    }
+
+    try {
+        const result = await downloadGeneric(url);
+
+        if (!result.status || !result.result) {
+            return res.status(result.code || 500).json({
+                success: false,
+                error: result.error || 'Download gagal'
+            });
+        }
+
+        res.json({
+            success: true,
+            title: result.result.title,
+            thumbnail: result.result.thumbnail,
+            downloadUrl: result.result.download,
+            directDownload: result.result.directDownload,
+            fileName: `${result.result.title}.${result.result.extension}`.replace(/[^\w\s.-]/gi, '_'),
+            platform: 'Generic',
+            source: result.result.source
+        });
+    } catch (error) {
+        console.error('❌ Generic download error:', error.message);
+        res.status(500).json({ success: false, error: 'Download gagal. Coba lagi' });
+    }
+}
+
 // ======================== MAIN HANDLER ========================
 async function mainDownloadHandler(req, res) {
     // Allow both GET and POST
@@ -746,10 +781,16 @@ async function mainDownloadHandler(req, res) {
             return handlePinterest(req, res);
         case 'facebook':
             return handleFacebook(req, res);
+        case 'generic':
+            return handleGeneric(req, res);
         default:
+            // Fallback to generic if platform is not valid but URL is provided
+            if (req.method === 'POST' && req.body.url) {
+                return handleGeneric(req, res);
+            }
             return res.status(400).json({
                 success: false,
-                error: 'Platform tidak valid. Gunakan: youtube, youtube-audio, tiktok, instagram, douyin, twitter, spotify, pinterest, facebook'
+                error: 'Platform tidak valid. Gunakan: youtube, youtube-audio, tiktok, instagram, douyin, twitter, spotify, pinterest, facebook, generic'
             });
     }
 }

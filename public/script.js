@@ -132,7 +132,9 @@ function detectPlatform(url) {
   if (lowerUrl.includes('spotify.com/track')) return 'Spotify';
   if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it')) return 'Pinterest';
   if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) return 'Facebook';
-  return 'Unknown';
+
+  // If not matched, return Generic instead of Unknown
+  return 'Generic';
 }
 
 // Debounce to prevent multiple simultaneous requests
@@ -775,6 +777,34 @@ async function handleUrlDownload(url) {
       console.error('Facebook metadata error:', error.message);
       throw new Error('Gagal mengambil data Facebook: ' + error.message);
     }
+  } else if (platform === 'Generic') {
+    // Generic - get video/media metadata
+    try {
+      const res = await fetchWithRetry('/api/downloaders/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: 'generic', url })
+      }, 2, 60000); // 60s timeout for generic download
+      const data = await res.json();
+
+      if (data.success) {
+        metadata = {
+          success: true,
+          title: data.title || 'Video',
+          thumbnail: data.thumbnail,
+          platform: 'Generic',
+          downloadUrl: data.downloadUrl,
+          directDownload: data.directDownload,
+          fileName: data.fileName,
+          source: data.source
+        };
+      } else {
+        throw new Error(data.error || 'Gagal mengambil data');
+      }
+    } catch (error) {
+      console.error('Generic metadata error:', error.message);
+      throw new Error('Gagal mengambil data: ' + error.message);
+    }
   }
 
   // FIX: Improved error handling for different API response formats
@@ -1212,8 +1242,14 @@ async function download(url, format, platform) {
       endpoint = '/api/downloaders/download';
       body.platform = 'pinterest';
     } else if (platform === 'Facebook') {
+    } else if (platform === 'Facebook') {
       endpoint = '/api/downloaders/download';
       body.platform = 'facebook';
+    } else if (platform === 'Generic') {
+      // For Generic, we already have the downloadUrl from metadata, 
+      // but if we need to fetch again:
+      endpoint = '/api/downloaders/download';
+      body.platform = 'generic';
     } else {
       throw new Error('Platform tidak didukung');
     }
@@ -1279,6 +1315,9 @@ async function download(url, format, platform) {
           primaryUrl = `/api/pinterest-proxy?url=${encodeURIComponent(downloadUrl)}`;
         } else if (platform === 'Facebook') {
           // Facebook downloadUrl is already proxied from API for auto-download
+          primaryUrl = downloadUrl;
+        } else if (platform === 'Generic') {
+          // Generic downloadUrl is already proxied from API for auto-download
           primaryUrl = downloadUrl;
         }
 

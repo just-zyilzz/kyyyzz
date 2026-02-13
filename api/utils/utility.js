@@ -456,10 +456,61 @@ module.exports = async (req, res) => {
                 return res.status(405).json({ success: false, error: 'Proxy endpoints only support GET' });
             }
             return handleFacebookProxy(req, res);
+        case 'generic-proxy':
+            if (req.method !== 'GET') {
+                return res.status(405).json({ success: false, error: 'Proxy endpoints only support GET' });
+            }
+            return handleGenericProxy(req, res);
         default:
             return res.status(400).json({
                 success: false,
-                error: 'Action tidak valid. Gunakan: search, thumbnail, pinterest-search, tiktok-proxy, instagram-proxy, youtube-proxy, facebook-proxy'
+                error: 'Action tidak valid. Gunakan: search, thumbnail, pinterest-search, tiktok-proxy, instagram-proxy, youtube-proxy, facebook-proxy, generic-proxy'
             });
     }
 };
+
+// ======================== GENERIC PROXY ========================
+async function handleGenericProxy(req, res) {
+    const { url, filename } = req.query;
+
+    if (!url) {
+        return res.status(400).json({ success: false, error: 'URL parameter required' });
+    }
+
+    try {
+        console.log(`📡 Generic Proxy: Downloading...`);
+
+        const response = await axios({
+            method: 'GET',
+            url: url,
+            responseType: 'arraybuffer',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+            },
+            timeout: 120000,
+            maxRedirects: 5,
+        });
+
+        // Set appropriate content type
+        let contentType = response.headers['content-type'] || 'application/octet-stream';
+
+        const downloadFilename = filename || `download_${Date.now()}.mp4`;
+
+        // Set headers for auto-download
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+        res.setHeader('Content-Length', response.data.length);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'no-cache');
+
+        // Send the buffer
+        res.send(Buffer.from(response.data));
+
+    } catch (error) {
+        console.error('❌ Generic Proxy error:', error.message);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: 'Failed to fetch media: ' + error.message });
+        }
+    }
+}
