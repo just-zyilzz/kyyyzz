@@ -56,7 +56,7 @@ body.dark {
 
 body {
   background: var(--bg-gradient);
-  background-image: url('./images/snoopy-white.jpg');
+  background-image: url('./images/snoopy-white.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -73,7 +73,7 @@ body {
 
 /* Dark mode background */
 body.dark {
-  background-image: url('./images/snoopy-dark.jpg');
+  background-image: url('./images/snoopy-dark.webp');
 }
 
 /* Overlay untuk meningkatkan kontras */
@@ -351,7 +351,7 @@ body.dark .search-type-toggle:hover {
 
   /* Simplify background gradients */
   body.dark {
-    background-image: url('./images/snoopy-dark.jpg');
+    background-image: url('./images/snoopy-dark.webp');
     /* Ensure it loads */
   }
 }
